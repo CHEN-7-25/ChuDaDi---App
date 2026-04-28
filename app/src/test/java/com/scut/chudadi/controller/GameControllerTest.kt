@@ -69,4 +69,38 @@ class GameControllerTest {
         assertEquals(-52, result["p4"])
         assertTrue(controller.state.lastWinnerId == "p1")
     }
+
+    @Test
+    fun `same seed should deal same hands`() {
+        val first = GameController(
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.SOUTH),
+            players = players()
+        )
+        val second = GameController(
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.SOUTH),
+            players = players()
+        )
+
+        first.startGame(seed = 20260427L)
+        second.startGame(seed = 20260427L)
+
+        assertEquals(
+            first.state.players.map { it.handCards.toList() },
+            second.state.players.map { it.handCards.toList() }
+        )
+        assertEquals(20260427L, first.state.roundSeed)
+    }
+
+    @Test
+    fun `north seeded game should keep last winner as first player`() {
+        val controller = GameController(
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
+            players = players()
+        )
+
+        controller.state.lastWinnerId = "p4"
+        controller.startGame(seed = 1L)
+
+        assertEquals(3, controller.state.currentPlayerIndex)
+    }
 }

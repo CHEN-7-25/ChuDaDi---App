@@ -31,5 +31,6 @@ data class GameState(
     var passCount: Int = 0,
     var firstRound: Boolean = true,
     var lastWinnerId: String? = null,
+    var roundSeed: Long = 0L,
     val finishOrder: MutableList<String> = mutableListOf()
 )

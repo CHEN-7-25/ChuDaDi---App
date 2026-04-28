@@ -11,13 +11,15 @@ import com.scut.chudadi.rule.HandEvaluator
 import com.scut.chudadi.rule.RuleProfile
 import com.scut.chudadi.rule.RuleProfiles
 import com.scut.chudadi.rule.RuleEngine
+import kotlin.random.Random
 
 class GameController(private val config: GameConfig, players: List<PlayerState>) {
     val state = GameState(players = players)
     val ruleProfile: RuleProfile = RuleProfiles.from(config.ruleSetType)
 
-    fun startGame() {
-        val deck = buildDeck().shuffled()
+    fun startGame(seed: Long = System.currentTimeMillis()) {
+        state.roundSeed = seed
+        val deck = buildDeck().shuffled(Random(seed))
         state.players.forEachIndexed { index, player ->
             player.handCards.clear()
             player.handCards.addAll(deck.subList(index * 13, (index + 1) * 13).sorted())

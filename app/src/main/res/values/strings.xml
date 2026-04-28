@@ -1,6 +1,27 @@
 <resources>
     <string name="app_name">锄大地</string>
-    <string name="summary_message">基础框架已接入规则引擎、AI策略和南北规则切换。</string>
-    <string name="start_demo">开始演示对局</string>
-    <string name="demo_idle">等待开始…</string>
+    <string name="new_game">下一局</string>
+    <string name="reset_match">重置比赛</string>
+    <string name="south_rule">南方规则</string>
+    <string name="north_rule">北方规则</string>
+    <string name="game_waiting">点击“新一局”开始。</string>
+    <string name="no_last_play">上一手：无</string>
+    <string name="my_hand">我的手牌</string>
+    <string name="no_selection">未选择手牌</string>
+    <string name="play_cards">出牌</string>
+    <string name="pass">过牌</string>
+    <string name="hint">提示</string>
+    <string name="message_ready">准备开始。</string>
+    <string name="log_empty">对局日志会显示在这里。</string>
+    <string name="bluetooth_title">蓝牙联机</string>
+    <string name="bluetooth_room_hint">房间名 / 主机 MAC / 已配对设备名</string>
+    <string name="bluetooth_idle">蓝牙未连接</string>
+    <string name="bluetooth_permission">授权蓝牙</string>
+    <string name="bluetooth_devices">已配对</string>
+    <string name="bluetooth_ready">准备</string>
+    <string name="bluetooth_reconnect">重连</string>
+    <string name="bluetooth_host">创建房间</string>
+    <string name="bluetooth_join">加入房间</string>
+    <string name="bluetooth_disconnect">断开</string>
+    <string name="leave_room">返回大厅</string>
 </resources>
