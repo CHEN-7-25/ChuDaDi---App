@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <bitmap
+            android:src="@drawable/table_felt_green"
+            android:tileMode="repeat" />
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#E10A1A15"
+                android:centerColor="#BA173B2D"
+                android:endColor="#F107130F" />
+        </shape>
+    </item>
+</layer-list>

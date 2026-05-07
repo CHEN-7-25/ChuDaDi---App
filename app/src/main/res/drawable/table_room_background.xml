@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <bitmap
+            android:src="@drawable/table_felt_green"
+            android:tileMode="repeat" />
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="180"
+                android:startColor="#F20A265C"
+                android:centerColor="#D43C4FA0"
+                android:endColor="#F00D376F" />
+        </shape>
+    </item>
+    <item android:top="10dp" android:left="10dp" android:right="10dp" android:bottom="10dp">
+        <shape android:shape="rectangle">
+            <corners android:radius="18dp" />
+            <stroke android:width="2dp" android:color="#C7D7F2FF" />
+            <solid android:color="#1AFFFFFF" />
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="90"
+                android:startColor="#6606B6E3"
+                android:centerColor="#0006B6E3"
+                android:endColor="#6606B6E3" />
+        </shape>
+    </item>
+</layer-list>

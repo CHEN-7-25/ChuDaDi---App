@@ -1,4 +1,24 @@
 <resources>
     <color name="white">#FFFFFFFF</color>
     <color name="black">#FF000000</color>
+    <color name="table_deep">#122D24</color>
+    <color name="table_green">#1F5A45</color>
+    <color name="table_green_light">#2E7D5A</color>
+    <color name="table_blue_deep">#0A2552</color>
+    <color name="table_blue">#2558A7</color>
+    <color name="table_blue_light">#49B3DD</color>
+    <color name="table_violet">#4653A4</color>
+    <color name="felt_shadow">#CC07140F</color>
+    <color name="casino_gold">#F1C45B</color>
+    <color name="casino_gold_dark">#A66F1D</color>
+    <color name="casino_cream">#FFF4D6</color>
+    <color name="panel_dark">#E51B2B25</color>
+    <color name="panel_blue_dark">#D61C356A</color>
+    <color name="panel_blue_soft">#CC2B5AA2</color>
+    <color name="panel_soft">#F7FFF8EA</color>
+    <color name="card_face">#FFFFFCF2</color>
+    <color name="card_stroke">#FFD5AE6D</color>
+    <color name="card_selected">#FFFFE4A6</color>
+    <color name="danger_red">#D74C45</color>
+    <color name="ink_dark">#1E2824</color>
 </resources>
