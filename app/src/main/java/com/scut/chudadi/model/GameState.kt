@@ -28,6 +28,7 @@ data class GameState(
     val players: List<PlayerState>,
     var currentPlayerIndex: Int = 0,
     var lastPlay: Play? = null,
+    var lastPlayPlayerId: String? = null,
     var passCount: Int = 0,
     var firstRound: Boolean = true,
     var lastWinnerId: String? = null,

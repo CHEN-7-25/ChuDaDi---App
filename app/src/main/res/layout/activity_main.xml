@@ -42,6 +42,7 @@
 	                    android:layout_width="wrap_content"
 	                    android:layout_height="wrap_content"
 	                    android:background="@drawable/button_primary"
+	                    android:backgroundTint="@null"
 	                    android:drawableStart="@drawable/ic_restart_alt_24"
 	                    android:drawablePadding="6dp"
 	                    android:minHeight="44dp"
@@ -56,6 +57,7 @@
 	                    android:layout_height="wrap_content"
 	                    android:layout_marginStart="8dp"
 	                    android:background="@drawable/button_secondary"
+	                    android:backgroundTint="@null"
 	                    android:minHeight="44dp"
 	                    android:paddingStart="14dp"
 	                    android:paddingEnd="14dp"
@@ -126,6 +128,7 @@
 	                android:layout_marginEnd="6dp"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_secondary"
+	                android:backgroundTint="@null"
 	                android:drawableStart="@drawable/ic_bluetooth_24"
 	                android:drawablePadding="4dp"
 	                android:minHeight="44dp"
@@ -139,6 +142,7 @@
 	                android:layout_marginEnd="6dp"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_secondary"
+	                android:backgroundTint="@null"
 	                android:minHeight="44dp"
 	                android:textColor="@color/casino_cream"
 	                android:text="@string/bluetooth_devices" />
@@ -150,6 +154,7 @@
 	                android:layout_marginEnd="6dp"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_primary"
+	                android:backgroundTint="@null"
 	                android:minHeight="44dp"
 	                android:textColor="@color/ink_dark"
 	                android:text="@string/bluetooth_ready" />
@@ -160,6 +165,7 @@
 	                android:layout_height="wrap_content"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_secondary"
+	                android:backgroundTint="@null"
 	                android:minHeight="44dp"
 	                android:textColor="@color/casino_cream"
 	                android:text="@string/bluetooth_reconnect" />
@@ -177,9 +183,10 @@
 	                android:layout_height="wrap_content"
 	                android:layout_marginEnd="6dp"
 	                android:layout_weight="1"
-	                android:background="@drawable/button_primary"
+	                android:background="@drawable/button_room_host"
+	                android:backgroundTint="@null"
 	                android:minHeight="44dp"
-	                android:textColor="@color/ink_dark"
+	                android:textColor="@color/casino_cream"
 	                android:text="@string/bluetooth_host" />
 
             <Button
@@ -189,6 +196,7 @@
 	                android:layout_marginEnd="6dp"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_secondary"
+	                android:backgroundTint="@null"
 	                android:minHeight="44dp"
 	                android:textColor="@color/casino_cream"
 	                android:text="@string/bluetooth_join" />
@@ -199,6 +207,7 @@
 	                android:layout_height="wrap_content"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_danger"
+	                android:backgroundTint="@null"
 	                android:minHeight="44dp"
 	                android:textColor="@color/casino_cream"
 	                android:text="@string/bluetooth_disconnect" />
@@ -309,6 +318,7 @@
 	                android:layout_marginEnd="8dp"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_primary"
+	                android:backgroundTint="@null"
 	                android:drawableStart="@drawable/ic_play_arrow_24"
 	                android:drawablePadding="6dp"
 	                android:minHeight="46dp"
@@ -322,6 +332,7 @@
 	                android:layout_marginEnd="8dp"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_secondary"
+	                android:backgroundTint="@null"
 	                android:drawableStart="@drawable/ic_pass_24"
 	                android:drawablePadding="6dp"
 	                android:minHeight="46dp"
@@ -334,6 +345,7 @@
 	                android:layout_height="wrap_content"
 	                android:layout_weight="1"
 	                android:background="@drawable/button_primary"
+	                android:backgroundTint="@null"
 	                android:drawableStart="@drawable/ic_lightbulb_24"
 	                android:drawablePadding="6dp"
 	                android:minHeight="46dp"

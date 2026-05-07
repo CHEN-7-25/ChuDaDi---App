@@ -234,6 +234,42 @@ class MainActivity : AppCompatActivity() {
         soundPool.play(soundId, volume, volume, 1, 0, 1f)
     }
 
+    private fun setGameMessage(text: String, fade: Boolean = false) {
+        tvMessage.animate().cancel()
+        tvMessage.alpha = 1f
+        tvMessage.text = text
+
+        if (::tvTableMessage.isInitialized) {
+            tvTableMessage.animate().cancel()
+            tvTableMessage.alpha = 1f
+            tvTableMessage.text = text
+        }
+
+        if (fade) {
+            animateFadingMessage(tvMessage)
+            if (::tvTableMessage.isInitialized && ::roomPage.isInitialized && roomPage.visibility == View.VISIBLE) {
+                animateFadingMessage(tvTableMessage)
+            }
+        }
+    }
+
+    private fun animateFadingMessage(view: TextView) {
+        view.animate().cancel()
+        view.alpha = 0f
+        view.animate()
+            .alpha(1f)
+            .setStartDelay(0L)
+            .setDuration(MESSAGE_FADE_IN_MS)
+            .withEndAction {
+                view.animate()
+                    .alpha(0f)
+                    .setStartDelay(MESSAGE_HOLD_MS)
+                    .setDuration(MESSAGE_FADE_OUT_MS)
+                    .start()
+            }
+            .start()
+    }
+
     private fun requestBluetoothPermissions() {
         bluetoothPermissionLauncher.launch(BluetoothPermissionHelper.requiredPermissions())
     }
@@ -729,13 +765,14 @@ class MainActivity : AppCompatActivity() {
         controller.state.lastPlay = CardWireCodec.decodeList(message.lastPlayCards)
             ?.takeIf { it.isNotEmpty() }
             ?.let { HandEvaluator.evaluate(it, controller.ruleProfile) }
+        controller.state.lastPlayPlayerId = message.lastPlayPlayerId
         controller.state.passCount = message.passCount
         controller.state.firstRound = message.firstRound
         controller.state.lastWinnerId = message.lastWinnerId
         controller.state.finishOrder.clear()
         controller.state.finishOrder.addAll(message.finishOrder)
         lastWinnerId = message.lastWinnerId
-        roundOver = message.finishOrder.isNotEmpty()
+        roundOver = controller.isRoundComplete()
         selectedCards.clear()
         waitingForHost = false
 
@@ -796,11 +833,13 @@ class MainActivity : AppCompatActivity() {
         if (bluetoothRole != BluetoothRole.LOCAL) {
             startHeartbeatLoop()
         }
-        tvMessage.text = if (currentPlayer().id == localPlayerId) {
-            "请选择手牌出牌。"
-        } else {
-            "等待其他玩家。"
-        }
+        setGameMessage(
+            if (currentPlayer().id == localPlayerId) {
+                "请选择手牌出牌。"
+            } else {
+                "等待其他玩家。"
+            }
+        )
         render()
         runAiTurns()
     }
@@ -824,7 +863,7 @@ class MainActivity : AppCompatActivity() {
         if (roundOver || currentPlayer().id != localPlayerId) return
         if (selectedCards.isEmpty()) {
             playUiSound(errorSoundId)
-            tvMessage.text = "先点选你要出的牌。"
+            setGameMessage("先点选你要出的牌。")
             return
         }
 
@@ -832,13 +871,13 @@ class MainActivity : AppCompatActivity() {
         val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
         if (play == null) {
             playUiSound(errorSoundId)
-            tvMessage.text = "这组牌不是合法牌型。"
+            setGameMessage("这组牌不是合法牌型。")
             return
         }
 
         if (!RuleEngine.canPlay(controller.state, humanPlayer().handCards, cards, controller.ruleProfile)) {
             playUiSound(errorSoundId)
-            tvMessage.text = invalidPlayMessage(cards)
+            setGameMessage(invalidPlayMessage(cards))
             return
         }
 
@@ -848,7 +887,7 @@ class MainActivity : AppCompatActivity() {
             )
             waitingForHost = true
             playUiSound(playSoundId)
-            tvMessage.text = "已发送出牌请求，等待主机确认。"
+            setGameMessage("已发送出牌请求，等待主机确认。")
             selectedCards.clear()
             render()
             return
@@ -856,7 +895,7 @@ class MainActivity : AppCompatActivity() {
 
         if (!controller.playCards(localPlayerId, cards)) {
             playUiSound(errorSoundId)
-            tvMessage.text = invalidPlayMessage(cards)
+            setGameMessage(invalidPlayMessage(cards))
             return
         }
 
@@ -872,7 +911,7 @@ class MainActivity : AppCompatActivity() {
         if (roundOver || currentPlayer().id != localPlayerId) return
         if (!RuleEngine.canPass(controller.state)) {
             playUiSound(errorSoundId)
-            tvMessage.text = "当前不能过牌，桌面没有上一手时必须出牌。"
+            setGameMessage("当前不能过牌，桌面没有上一手时必须出牌。")
             return
         }
 
@@ -880,7 +919,7 @@ class MainActivity : AppCompatActivity() {
             syncManager?.sendMessage(BluetoothMessage.Pass(localPlayerId))
             waitingForHost = true
             playUiSound(passSoundId)
-            tvMessage.text = "已发送过牌请求，等待主机确认。"
+            setGameMessage("已发送过牌请求，等待主机确认。")
             selectedCards.clear()
             render()
             return
@@ -888,7 +927,7 @@ class MainActivity : AppCompatActivity() {
 
         if (!controller.pass(localPlayerId)) {
             playUiSound(errorSoundId)
-            tvMessage.text = "当前不能过牌，桌面没有上一手时必须出牌。"
+            setGameMessage("当前不能过牌，桌面没有上一手时必须出牌。")
             return
         }
 
@@ -911,22 +950,23 @@ class MainActivity : AppCompatActivity() {
         selectedCards.clear()
         if (candidate == null) {
             playUiSound(errorSoundId)
-            tvMessage.text = "没有能压过上一手的牌，可以过牌。"
+            setGameMessage("你现在没有牌能超过对面，可以过牌。", fade = true)
         } else {
             playUiSound(selectSoundId)
             selectedCards.addAll(candidate)
-            tvMessage.text = "已选中建议出牌：${cardsLabel(candidate)}"
+            setGameMessage("已选中建议出牌：${cardsLabel(candidate)}")
         }
         render()
     }
 
     private fun afterAction() {
-        if (controller.state.finishOrder.isNotEmpty()) {
+        if (controller.isRoundComplete()) {
             finishRound()
             return
         }
 
-        tvMessage.text = if (currentPlayer().id == localPlayerId) "轮到你了。" else "等待其他玩家..."
+        val message = if (currentPlayer().id == localPlayerId) "轮到你了。" else "等待其他玩家..."
+        setGameMessage(message, fade = message == "轮到你了。")
         render()
         runAiTurns()
     }
@@ -995,7 +1035,7 @@ class MainActivity : AppCompatActivity() {
         addLog("计分：${scoreMap.entries.joinToString("，") { "${playerName(it.key)} ${it.value}" }}")
         syncManager?.sendMessage(BluetoothMessage.RoundResult(scoreMap))
         sendBluetoothSnapshot()
-        tvMessage.text = "本局结束。点击“下一局”继续累计比分。"
+        setGameMessage("本局结束。点击“下一局”继续累计比分。")
         render()
     }
 
@@ -1054,6 +1094,8 @@ class MainActivity : AppCompatActivity() {
             tvTableLastPlay.text = "房间准备中"
             tableLastPlayCards.removeAllViews()
             addTablePlaceholder("等待开局")
+            tvTableMessage.animate().cancel()
+            tvTableMessage.alpha = 1f
             tvTableMessage.text = waitingHumanSeats().takeIf { it.isNotEmpty() }?.let {
                 "等待：${it.joinToString("、")}"
             } ?: "座位已准备，可以开始"
@@ -1809,7 +1851,8 @@ class MainActivity : AppCompatActivity() {
                 finishOrder = state.finishOrder.toList(),
                 passCount = state.passCount,
                 firstRound = state.firstRound,
-                lastWinnerId = state.lastWinnerId
+                lastWinnerId = state.lastWinnerId,
+                lastPlayPlayerId = state.lastPlayPlayerId
             )
         )
         if (bluetoothRole == BluetoothRole.HOST) {
@@ -1963,6 +2006,9 @@ class MainActivity : AppCompatActivity() {
         private const val SETUP_RESERVED_WIDTH_DP = 32
         private const val TABLE_RESERVED_WIDTH_DP = 144
         private const val AI_TURN_DELAY_MS = 700L
+        private const val MESSAGE_FADE_IN_MS = 180L
+        private const val MESSAGE_HOLD_MS = 1_250L
+        private const val MESSAGE_FADE_OUT_MS = 520L
         private const val HEARTBEAT_INTERVAL_MS = 5_000L
         private const val HEARTBEAT_TIMEOUT_MS = 15_000L
         private val PLAYER_IDS = listOf("p1", "p2", "p3", "p4")

@@ -27,12 +27,14 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
 
         state.currentPlayerIndex = ruleProfile.selectFirstPlayer(state.players, state.lastWinnerId)
         state.lastPlay = null
+        state.lastPlayPlayerId = null
         state.passCount = 0
         state.firstRound = true
         state.finishOrder.clear()
     }
 
     fun playCards(playerId: String, cards: List<Card>): Boolean {
+        if (isRoundComplete()) return false
         val currentPlayer = state.players[state.currentPlayerIndex]
         if (currentPlayer.id != playerId) return false
         if (!RuleEngine.canPlay(state, currentPlayer.handCards, cards, ruleProfile)) return false
@@ -40,28 +42,34 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
         val play = HandEvaluator.evaluate(cards, ruleProfile) ?: return false
         currentPlayer.handCards.removeAll(cards.toSet())
         state.lastPlay = play
+        state.lastPlayPlayerId = currentPlayer.id
         state.passCount = 0
         state.firstRound = false
 
         if (currentPlayer.handCards.isEmpty()) {
-            state.finishOrder.add(currentPlayer.id)
+            markFinished(currentPlayer)
             if (state.lastWinnerId == null) {
                 state.lastWinnerId = currentPlayer.id
             }
         }
 
-        nextTurn()
+        completeLastRemainingPlayerIfNeeded()
+        if (!isRoundComplete()) {
+            nextTurn()
+        }
         return true
     }
 
     fun pass(playerId: String): Boolean {
+        if (isRoundComplete()) return false
         val currentPlayer = state.players[state.currentPlayerIndex]
         if (currentPlayer.id != playerId) return false
         if (!RuleEngine.canPass(state)) return false
 
         state.passCount += 1
-        if (state.passCount >= activePlayerCount() - 1) {
+        if (state.passCount >= passesRequiredToClearTable()) {
             state.lastPlay = null
+            state.lastPlayPlayerId = null
             state.passCount = 0
         }
 
@@ -70,39 +78,76 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
     }
 
     fun settleRound(): Map<String, Int> {
-        val remaining = state.players.associate { it.id to it.handCards.size }
-        if (config.scoringMode == ScoringMode.WIN_COUNT) return remaining.mapValues { 0 }
-
-        val winnerId = state.finishOrder.firstOrNull() ?: return remaining
-        var total = 0
-        val lossMap = mutableMapOf<String, Int>()
-        remaining.forEach { (id, count) ->
-            if (id == winnerId) return@forEach
-            val lose = calculateLoseScore(count)
-            lossMap[id] = -lose
-            total += lose
+        val order = completedFinishOrder()
+        if (config.scoringMode == ScoringMode.WIN_COUNT) {
+            return state.players.associate { player ->
+                player.id to if (player.id == order.firstOrNull()) 1 else 0
+            }
         }
-        lossMap[winnerId] = total
-        state.lastWinnerId = winnerId
-        return lossMap
+
+        val rankScore = state.players.size - 1
+        val scoreMap = mutableMapOf<String, Int>()
+        order.forEachIndexed { index, playerId ->
+            scoreMap[playerId] = rankScore - (index * 2)
+        }
+        state.lastWinnerId = order.firstOrNull()
+        return scoreMap
     }
 
     private fun nextTurn() {
+        val activeIds = activePlayerIds()
+        if (activeIds.isEmpty()) return
+
         var next = (state.currentPlayerIndex + 1) % state.players.size
-        while (state.players[next].id in state.finishOrder) {
+        repeat(state.players.size) {
+            if (state.players[next].id in activeIds) {
+                state.currentPlayerIndex = next
+                return
+            }
             next = (next + 1) % state.players.size
         }
-        state.currentPlayerIndex = next
     }
 
-    private fun activePlayerCount(): Int = state.players.size - state.finishOrder.size
+    fun isRoundComplete(): Boolean = state.finishOrder.size >= state.players.size
 
-    private fun calculateLoseScore(count: Int): Int {
-        return when {
-            count < 8 -> count
-            count < 10 -> count * 2
-            count < 13 -> count * 3
-            else -> count * 4
+    private fun markFinished(player: PlayerState) {
+        if (player.id !in state.finishOrder) {
+            state.finishOrder.add(player.id)
+        }
+    }
+
+    private fun completeLastRemainingPlayerIfNeeded() {
+        val active = state.players.filter { it.id !in state.finishOrder }
+        if (active.size == 1) {
+            active.first().handCards.clear()
+            markFinished(active.first())
+        }
+    }
+
+    private fun completedFinishOrder(): List<String> {
+        return buildList {
+            addAll(state.finishOrder.distinct())
+            addAll(state.players.map { it.id }.filter { it !in this })
+        }
+    }
+
+    private fun activePlayerIds(): Set<String> {
+        return state.players
+            .filter { it.id !in state.finishOrder }
+            .map { it.id }
+            .toSet()
+    }
+
+    private fun activePlayerCount(): Int = activePlayerIds().size
+
+    private fun passesRequiredToClearTable(): Int {
+        val activeCount = activePlayerCount()
+        val lastPlayOwnerCanRespond = state.lastPlayPlayerId != null &&
+            state.lastPlayPlayerId !in state.finishOrder
+        return if (lastPlayOwnerCanRespond) {
+            (activeCount - 1).coerceAtLeast(1)
+        } else {
+            activeCount.coerceAtLeast(1)
         }
     }
 

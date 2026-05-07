@@ -102,7 +102,8 @@ class BluetoothMessageCodecTest {
             finishOrder = listOf("p2"),
             passCount = 1,
             firstRound = false,
-            lastWinnerId = "p4"
+            lastWinnerId = "p4",
+            lastPlayPlayerId = "p2"
         )
 
         val decoded = BluetoothMessageCodec.decode(BluetoothMessageCodec.encode(message))
