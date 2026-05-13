@@ -1,7 +1,21 @@
 <resources>
     <string name="app_name">锄大地</string>
-    <string name="new_game">下一局</string>
+    <string name="new_game">开始新局</string>
     <string name="reset_match">重置比赛</string>
+    <string name="local_game_section">本地开局</string>
+    <string name="rule_section">规则选择</string>
+    <string name="bluetooth_room_section">蓝牙房间</string>
+    <string name="room_state_section">房间状态 / 玩家准备状态</string>
+    <string name="mode_local">本地</string>
+    <string name="mode_bluetooth">联机</string>
+    <string name="human_count_title">真人玩家数量</string>
+    <string name="humans_2">2 位真人</string>
+    <string name="humans_3">3 位真人</string>
+    <string name="humans_4">4 位真人</string>
+    <string name="setup_summary_local">本地对局：你 + 3 个 AI。</string>
+    <string name="setup_summary_bluetooth">联机对局：选择真人数量后，剩余座位自动由 AI 托管。</string>
+    <string name="start_local_game">开始本地对局</string>
+    <string name="create_bluetooth_room">创建联机房间</string>
     <string name="south_rule">南方规则</string>
     <string name="north_rule">北方规则</string>
     <string name="game_waiting">点击“新一局”开始。</string>

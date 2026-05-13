@@ -19,7 +19,6 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.scut.chudadi.ai.ConservativeStrategy
 import com.scut.chudadi.ai.GreedyStrategy
@@ -84,8 +83,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnTableHint: Button
     private lateinit var btnTableNewGame: Button
     private lateinit var btnTableLeaveRoom: Button
+    private lateinit var rbModeLocal: RadioButton
+    private lateinit var rbModeBluetooth: RadioButton
+    private lateinit var rbHumans2: RadioButton
+    private lateinit var rbHumans3: RadioButton
+    private lateinit var rbHumans4: RadioButton
     private lateinit var rbSouth: RadioButton
     private lateinit var rbNorth: RadioButton
+    private lateinit var bluetoothRoomPanel: View
+    private lateinit var roomStatePanel: View
+    private lateinit var tvSetupSummary: TextView
 
     private lateinit var controller: GameController
     private val matchScores = mutableMapOf<String, Int>()
@@ -115,6 +122,7 @@ class MainActivity : AppCompatActivity() {
     private var heartbeatTimeoutReported = false
     private var roundNumber = 0
     private var roundOver = false
+    private var shouldFadeNextTablePrompt = false
 
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
@@ -180,12 +188,20 @@ class MainActivity : AppCompatActivity() {
         btnTableHint = findViewById(R.id.btnTableHint)
         btnTableNewGame = findViewById(R.id.btnTableNewGame)
         btnTableLeaveRoom = findViewById(R.id.btnTableLeaveRoom)
+        rbModeLocal = findViewById(R.id.rbModeLocal)
+        rbModeBluetooth = findViewById(R.id.rbModeBluetooth)
+        rbHumans2 = findViewById(R.id.rbHumans2)
+        rbHumans3 = findViewById(R.id.rbHumans3)
+        rbHumans4 = findViewById(R.id.rbHumans4)
         rbSouth = findViewById(R.id.rbSouth)
         rbNorth = findViewById(R.id.rbNorth)
+        bluetoothRoomPanel = findViewById(R.id.bluetoothRoomPanel)
+        roomStatePanel = findViewById(R.id.roomStatePanel)
+        tvSetupSummary = findViewById(R.id.tvSetupSummary)
 
         initAudioFeedback()
 
-        btnNewGame.setOnClickListener { startNewGame() }
+        btnNewGame.setOnClickListener { startConfiguredGame() }
         btnResetMatch.setOnClickListener { resetMatch() }
         btnPlay.setOnClickListener { playSelectedCards() }
         btnPass.setOnClickListener { passTurn() }
@@ -194,7 +210,7 @@ class MainActivity : AppCompatActivity() {
         btnBluetoothDevices.setOnClickListener { showBondedBluetoothDevices() }
         btnBluetoothReady.setOnClickListener { markBluetoothReady() }
         btnBluetoothReconnect.setOnClickListener { requestBluetoothReconnect() }
-        btnBluetoothHost.setOnClickListener { showRoomSeatDialog() }
+        btnBluetoothHost.setOnClickListener { startConfiguredBluetoothRoom() }
         btnBluetoothJoin.setOnClickListener { joinBluetoothRoom() }
         btnBluetoothDisconnect.setOnClickListener { disconnectBluetoothRoom() }
         btnTablePlay.setOnClickListener { playSelectedCards() }
@@ -202,8 +218,11 @@ class MainActivity : AppCompatActivity() {
         btnTableHint.setOnClickListener { selectHintCards() }
         btnTableNewGame.setOnClickListener { startNewGame() }
         btnTableLeaveRoom.setOnClickListener { leaveRoomPage() }
+        listOf(rbModeLocal, rbModeBluetooth, rbHumans2, rbHumans3, rbHumans4).forEach { radioButton ->
+            radioButton.setOnClickListener { updateLobbySetupUi() }
+        }
 
-        startNewGame()
+        initializeLobbySetup()
     }
 
     override fun onDestroy() {
@@ -235,21 +254,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setGameMessage(text: String, fade: Boolean = false) {
-        tvMessage.animate().cancel()
-        tvMessage.alpha = 1f
-        tvMessage.text = text
+        shouldFadeNextTablePrompt = fade
+        showMessage(tvMessage, text, fade)
 
         if (::tvTableMessage.isInitialized) {
-            tvTableMessage.animate().cancel()
-            tvTableMessage.alpha = 1f
-            tvTableMessage.text = text
+            showMessage(tvTableMessage, text, fade)
         }
+    }
 
+    private fun showMessage(view: TextView, text: String, fade: Boolean = false) {
+        view.animate().cancel()
+        view.alpha = 1f
+        view.text = text
         if (fade) {
-            animateFadingMessage(tvMessage)
-            if (::tvTableMessage.isInitialized && ::roomPage.isInitialized && roomPage.visibility == View.VISIBLE) {
-                animateFadingMessage(tvTableMessage)
-            }
+            animateFadingMessage(view)
         }
     }
 
@@ -270,29 +288,96 @@ class MainActivity : AppCompatActivity() {
             .start()
     }
 
-    private fun requestBluetoothPermissions() {
-        bluetoothPermissionLauncher.launch(BluetoothPermissionHelper.requiredPermissions())
+    private fun initializeLobbySetup() {
+        roomGameStarted = false
+        roundOver = false
+        selectedCards.clear()
+        playerBoard.removeAllViews()
+        cardContainer.removeAllViews()
+        pairedDeviceBoard.removeAllViews()
+        renderRoomState()
+        tvStatus.text = "请选择模式和玩家数量后开始。"
+        tvLastPlay.text = getString(R.string.no_last_play)
+        tvSelection.text = getString(R.string.no_selection)
+        tvMessage.text = "先设置玩家，再开始牌局。"
+        renderLog()
+        setActionButtonsEnabled(false)
+        updateLobbySetupUi()
     }
 
-    private fun showRoomSeatDialog() {
-        val labels = arrayOf("玩家 2 使用蓝牙真人", "玩家 3 使用蓝牙真人", "玩家 4 使用蓝牙真人")
-        val checked = booleanArrayOf(false, false, false)
-        AlertDialog.Builder(this)
-            .setTitle("创建房间")
-            .setMessage("勾选真人座位；未勾选的座位由 AI 托管。全选 AI 会直接开始对局。")
-            .setMultiChoiceItems(labels, checked) { _, index, isChecked ->
-                checked[index] = isChecked
-            }
-            .setNegativeButton("取消", null)
-            .setPositiveButton("创建") { _, _ ->
-                val humanSeats = PLAYER_IDS.drop(1).filterIndexed { index, _ -> checked[index] }.toSet()
-                if (humanSeats.isEmpty()) {
-                    createLocalAiRoom()
-                } else {
-                    hostBluetoothRoom(humanSeats)
-                }
-            }
-            .show()
+    private fun resetLobbySetup() {
+        handler.removeCallbacksAndMessages(null)
+        syncManager?.disconnect()
+        bluetoothRole = BluetoothRole.LOCAL
+        localPlayerId = HUMAN_ID
+        networkPlayerId = HUMAN_ID
+        syncManagerOwnerId = null
+        currentRoomId = ""
+        waitingForHost = false
+        lastWinnerId = null
+        lastHeartbeatAt = 0L
+        heartbeatTimeoutReported = false
+        roundNumber = 0
+        matchScores.clear()
+        logLines.clear()
+        lastHeartbeatByPlayer.clear()
+        bluetoothHumanSeats.clear()
+        clientSeatByRequestId.clear()
+        roomPlayers.clear()
+        roomPlayers.add(localPlayerId)
+        readyPlayers.clear()
+        readyPlayers.add(localPlayerId)
+        rbModeLocal.isChecked = true
+        rbHumans2.isChecked = true
+        rbSouth.isChecked = true
+        etBluetoothRoom.setText("")
+        tvBluetoothStatus.text = getString(R.string.bluetooth_idle)
+        initializeLobbySetup()
+    }
+
+    private fun updateLobbySetupUi() {
+        val bluetoothMode = rbModeBluetooth.isChecked
+        bluetoothRoomPanel.visibility = if (bluetoothMode) View.VISIBLE else View.GONE
+        roomStatePanel.visibility = if (bluetoothMode) View.VISIBLE else View.GONE
+
+        if (bluetoothMode) {
+            val humanCount = selectedHumanCount()
+            val aiCount = PLAYER_IDS.size - humanCount
+            tvSetupSummary.text = "联机对局：$humanCount 位真人 + $aiCount 个 AI。房主创建房间后，真人加入完成会自动开局。"
+            btnNewGame.text = getString(R.string.create_bluetooth_room)
+        } else {
+            tvSetupSummary.text = getString(R.string.setup_summary_local)
+            btnNewGame.text = getString(R.string.start_local_game)
+        }
+    }
+
+    private fun selectedHumanCount(): Int {
+        return when {
+            rbHumans4.isChecked -> 4
+            rbHumans3.isChecked -> 3
+            else -> 2
+        }
+    }
+
+    private fun startConfiguredGame() {
+        playUiSound(selectSoundId)
+        if (rbModeBluetooth.isChecked) {
+            startConfiguredBluetoothRoom()
+        } else {
+            createLocalAiRoom()
+        }
+    }
+
+    private fun startConfiguredBluetoothRoom() {
+        rbModeBluetooth.isChecked = true
+        updateLobbySetupUi()
+        val remoteHumanCount = (selectedHumanCount() - 1).coerceIn(1, PLAYER_IDS.size - 1)
+        val humanSeats = PLAYER_IDS.drop(1).take(remoteHumanCount).toSet()
+        hostBluetoothRoom(humanSeats)
+    }
+
+    private fun requestBluetoothPermissions() {
+        bluetoothPermissionLauncher.launch(BluetoothPermissionHelper.requiredPermissions())
     }
 
     private fun createLocalAiRoom() {
@@ -398,11 +483,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun leaveRoomPage() {
+        handler.removeCallbacksAndMessages(null)
         disconnectBluetoothRoom()
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         roomPage.visibility = View.GONE
         setupPage.visibility = View.VISIBLE
-        render()
+        initializeLobbySetup()
     }
 
     private fun startHeartbeatLoop() {
@@ -580,8 +666,11 @@ class MainActivity : AppCompatActivity() {
                     roomPlayers.clear()
                     roomPlayers.addAll(message.players)
                     readyPlayers.clear()
+                    readyPlayers.add(localPlayerId)
                     lastHeartbeatByPlayer.clear()
+                    syncManager?.sendMessage(BluetoothMessage.Ready(localPlayerId))
                     addLog("蓝牙：你被分配到座位 ${message.assignedPlayerId}")
+                    tvBluetoothStatus.text = "已加入座位 ${message.assignedPlayerId}，等待房主开局。"
                 } else {
                     roomPlayers.clear()
                     roomPlayers.addAll(message.players)
@@ -845,6 +934,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun resetMatch() {
+        if (setupPage.visibility == View.VISIBLE && roomPage.visibility != View.VISIBLE) {
+            resetLobbySetup()
+            return
+        }
+
         handler.removeCallbacksAndMessages(null)
         selectedCards.clear()
         logLines.clear()
@@ -954,7 +1048,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             playUiSound(selectSoundId)
             selectedCards.addAll(candidate)
-            setGameMessage("已选中建议出牌：${cardsLabel(candidate)}")
+            setGameMessage("已选中建议出牌：${cardsLabel(candidate)}", fade = true)
         }
         render()
     }
@@ -1048,7 +1142,6 @@ class MainActivity : AppCompatActivity() {
             append("    规则：${controller.ruleProfile.displayName}")
             append("    局数：${roundNumber}")
             append("    已过牌：${controller.state.passCount}")
-            append("    Seed：${controller.state.roundSeed}")
             if (bluetoothRole != BluetoothRole.LOCAL) {
                 append("    你的座位：${localPlayerId}")
             }
@@ -1066,7 +1159,7 @@ class MainActivity : AppCompatActivity() {
         renderTablePage()
 
         val humanTurn = !roundOver && current.id == localPlayerId
-        btnPlay.isEnabled = humanTurn && selectedCards.isNotEmpty() && !waitingForHost
+        btnPlay.isEnabled = humanTurn && canPlaySelectedCards() && !waitingForHost
         btnPass.isEnabled = humanTurn && RuleEngine.canPass(controller.state) && !waitingForHost
         btnHint.isEnabled = humanTurn && !waitingForHost
     }
@@ -1080,14 +1173,15 @@ class MainActivity : AppCompatActivity() {
             BluetoothRole.CLIENT -> if (roomGameStarted) "蓝牙对局中" else "等待房主开局"
         }
         tvTableStatus.text = buildString {
-            append("锄大地")
-            append("    房间：${currentRoomId.ifEmpty { "本地房间" }}")
+            append("锄大地 · 房间：${currentRoomId.ifEmpty { "本地房间" }}")
             if (::controller.isInitialized) {
-                append("    ${controller.ruleProfile.displayName}")
-                append("    第 ${roundNumber} 局")
-                append("    已过 ${controller.state.passCount}")
+                append(" · ${controller.ruleProfile.displayName}")
+                append('\n')
+                append("第 ${roundNumber} 局 · 已过 ${controller.state.passCount} · 底 1 · 倍 1 · $modeLabel")
+            } else {
+                append('\n')
+                append(modeLabel)
             }
-            append("    底：1    倍：1    $modeLabel")
         }
 
         if (!roomGameStarted || !::controller.isInitialized) {
@@ -1099,6 +1193,7 @@ class MainActivity : AppCompatActivity() {
             tvTableMessage.text = waitingHumanSeats().takeIf { it.isNotEmpty() }?.let {
                 "等待：${it.joinToString("、")}"
             } ?: "座位已准备，可以开始"
+            shouldFadeNextTablePrompt = false
             tableCardContainer.removeAllViews()
             renderTableSeats()
             renderLocalPlayerHud()
@@ -1107,17 +1202,24 @@ class MainActivity : AppCompatActivity() {
         }
 
         tvTableLastPlay.text = controller.state.lastPlay?.let {
-            "上一手：${typeName(it.type)}"
+            val player = controller.state.lastPlayPlayerId?.let(::playerName) ?: "上家"
+            "上一手：$player · ${typeName(it.type)}"
         } ?: "上一手为空"
         renderTableLastPlayCards()
-        tvTableMessage.text = tvMessage.text
+        val promptText = tablePromptText()
+        showMessage(
+            tvTableMessage,
+            promptText,
+            fade = selectedCards.isNotEmpty() || shouldFadeNextTablePrompt
+        )
+        shouldFadeNextTablePrompt = false
         renderTableSeats()
         renderLocalPlayerHud()
         renderTableHand()
 
         val humanTurn = !roundOver && currentPlayer().id == localPlayerId
         setTableActionButtons(
-            playEnabled = humanTurn && selectedCards.isNotEmpty() && !waitingForHost,
+            playEnabled = humanTurn && canPlaySelectedCards() && !waitingForHost,
             passEnabled = humanTurn && RuleEngine.canPass(controller.state) && !waitingForHost,
             hintEnabled = humanTurn && !waitingForHost
         )
@@ -1173,11 +1275,11 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.VERTICAL
             gravity = android.view.Gravity.CENTER
             clipToPadding = false
-            setPadding(dp(7), dp(6), dp(7), dp(7))
-            elevation = if (isCurrent) dp(8).toFloat() else dp(3).toFloat()
+            setPadding(dp(6), dp(6), dp(6), dp(6))
+            elevation = if (isCurrent) dp(9).toFloat() else dp(3).toFloat()
             background = roundedBackground(
-                fillColor = if (isCurrent) "#E63366B0" else "#C818315F",
-                strokeColor = if (isCurrent) "#FFFFDE5B" else "#8FD5EEFF",
+                fillColor = if (isCurrent) "#E5225A43" else "#C80E231B",
+                strokeColor = if (isCurrent) "#FFFFDE5B" else "#75F1C45B",
                 radiusDp = 8
             )
             addView(
@@ -1187,14 +1289,14 @@ class MainActivity : AppCompatActivity() {
                     background = roundedBackground("#F4F9FFFF", "#FFFFF3B4", radiusDp = 28)
                     setPadding(dp(2), dp(2), dp(2), dp(2))
                 },
-                LinearLayout.LayoutParams(dp(50), dp(50))
+                LinearLayout.LayoutParams(dp(46), dp(46))
             )
             addView(
                 TextView(this@MainActivity).apply {
                     text = displayNameForSeat(player.id, index)
                     gravity = android.view.Gravity.CENTER
                     includeFontPadding = false
-                    textSize = 13f
+                    textSize = 12.5f
                     typeface = Typeface.DEFAULT_BOLD
                     setTextColor(Color.parseColor("#FFFFFFFF"))
                 },
@@ -1207,11 +1309,11 @@ class MainActivity : AppCompatActivity() {
             )
             addView(
                 TextView(this@MainActivity).apply {
-                    text = "$handText  ·  ${seatStateLabel(player.id, joined, needsBluetooth)}"
+                    text = "$handText · ${seatStateLabel(player.id, joined, needsBluetooth)}"
                     gravity = android.view.Gravity.CENTER
                     includeFontPadding = false
                     textSize = 11f
-                    setTextColor(Color.parseColor("#DDEFFFFF"))
+                    setTextColor(Color.parseColor("#E7FFF4D6"))
                 },
                 LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1251,8 +1353,8 @@ class MainActivity : AppCompatActivity() {
         }
         val isCurrent = roomGameStarted && ::controller.isInitialized && player.id == currentPlayer().id && !roundOver
         tableLocalHud.background = roundedBackground(
-            fillColor = if (isCurrent) "#E63366B0" else "#D7172C58",
-            strokeColor = if (isCurrent) "#FFFFDE5B" else "#8BD7F2FF",
+            fillColor = if (isCurrent) "#E5225A43" else "#D70E231B",
+            strokeColor = if (isCurrent) "#FFFFDE5B" else "#75F1C45B",
             radiusDp = 8
         )
         tableLocalHud.addView(
@@ -1266,10 +1368,10 @@ class MainActivity : AppCompatActivity() {
         )
         tableLocalHud.addView(
             TextView(this).apply {
-                text = "你"
+                text = if (isCurrent) "轮到你" else "你"
                 gravity = android.view.Gravity.CENTER
                 includeFontPadding = false
-                textSize = 14f
+                textSize = 13f
                 typeface = Typeface.DEFAULT_BOLD
                 setTextColor(Color.WHITE)
             },
@@ -1287,7 +1389,7 @@ class MainActivity : AppCompatActivity() {
                 gravity = android.view.Gravity.CENTER
                 includeFontPadding = false
                 textSize = 11f
-                setTextColor(Color.parseColor("#E5F7FFFF"))
+                setTextColor(Color.parseColor("#E7FFF4D6"))
             },
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -1308,7 +1410,7 @@ class MainActivity : AppCompatActivity() {
         lastPlay.cards.sorted().forEach { card ->
             tableLastPlayCards.addView(
                 miniCardView(card, textSize = 12f),
-                LinearLayout.LayoutParams(dp(34), dp(50)).apply {
+                LinearLayout.LayoutParams(dp(36), dp(52)).apply {
                     marginEnd = dp(4)
                 }
             )
@@ -1379,8 +1481,8 @@ class MainActivity : AppCompatActivity() {
                             scaleType = ImageView.ScaleType.FIT_CENTER
                             alpha = 0.96f
                         },
-                        LinearLayout.LayoutParams(dp(24), dp(28)).apply {
-                            if (previewIndex > 0) marginStart = -dp(7)
+                        LinearLayout.LayoutParams(dp(22), dp(27)).apply {
+                            if (previewIndex > 0) marginStart = -dp(8)
                         }
                     )
                 }
@@ -1431,24 +1533,17 @@ class MainActivity : AppCompatActivity() {
                 setTextColor(cardTextColor(card.suit))
                 setPadding(dp(3), dp(3), dp(3), dp(3))
                 isEnabled = humanTurn
+                alpha = if (humanTurn) 1f else 0.64f
                 elevation = if (selected) dp(10).toFloat() else dp(4).toFloat()
                 translationY = if (selected) -dp(16).toFloat() else 0f
                 background = if (selected) {
-                    roundedBackground(
-                        fillColor = "#FFFFE4A6",
-                        strokeColor = "#FFF1C45B",
-                        radiusDp = 7
-                    )
+                    resources.getDrawable(R.drawable.card_face_table_selected, theme)
                 } else {
                     resources.getDrawable(R.drawable.card_face_table, theme)
                 }
                 setOnClickListener {
                     playUiSound(selectSoundId)
-                    if (card in selectedCards) {
-                        selectedCards.remove(card)
-                    } else {
-                        selectedCards.add(card)
-                    }
+                    toggleSelectedCard(card)
                     render()
                 }
             }
@@ -1629,6 +1724,7 @@ class MainActivity : AppCompatActivity() {
                 setTextColor(cardTextColor(card.suit))
                 setPadding(dp(4), dp(4), dp(4), dp(4))
                 isEnabled = humanTurn
+                alpha = if (humanTurn) 1f else 0.68f
                 elevation = if (selected) dp(7).toFloat() else dp(2).toFloat()
                 translationY = if (selected) -dp(8).toFloat() else 0f
                 background = roundedBackground(
@@ -1638,11 +1734,7 @@ class MainActivity : AppCompatActivity() {
                 )
                 setOnClickListener {
                     playUiSound(selectSoundId)
-                    if (card in selectedCards) {
-                        selectedCards.remove(card)
-                    } else {
-                        selectedCards.add(card)
-                    }
+                    toggleSelectedCard(card)
                     render()
                 }
             }
@@ -1654,14 +1746,47 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderSelection() {
-        tvSelection.text = if (selectedCards.isEmpty()) {
-            "未选择手牌"
+        showMessage(tvSelection, selectionDescription(), fade = selectedCards.isNotEmpty())
+    }
+
+    private fun toggleSelectedCard(card: Card) {
+        if (card in selectedCards) {
+            selectedCards.remove(card)
         } else {
-            val cards = selectedCards.toList().sorted()
-            val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
-            val type = play?.type?.let { typeName(it) } ?: "非法牌型"
-            "已选：$type ${cardsLabel(cards)}"
+            selectedCards.add(card)
         }
+    }
+
+    private fun selectionDescription(): String {
+        if (selectedCards.isEmpty()) return "未选择手牌"
+
+        val cards = selectedCards.toList().sorted()
+        val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
+        val type = play?.type?.let { typeName(it) } ?: "非法牌型"
+        val playState = if (canPlaySelectedCards()) "可出" else "不可出"
+        return "已选：$type · ${cards.size} 张 · $playState  ${cardsLabel(cards)}"
+    }
+
+    private fun tablePromptText(): String {
+        if (selectedCards.isNotEmpty()) return selectionDescription()
+        if (roundOver || waitingForHost) return tvMessage.text.toString()
+
+        val current = currentPlayer()
+        return if (current.id == localPlayerId) {
+            "轮到你出牌"
+        } else {
+            "等待 ${current.name} 出牌"
+        }
+    }
+
+    private fun canPlaySelectedCards(): Boolean {
+        if (selectedCards.isEmpty()) return false
+        return RuleEngine.canPlay(
+            controller.state,
+            humanPlayer().handCards,
+            selectedCards.toList().sorted(),
+            controller.ruleProfile
+        )
     }
 
     private fun renderLog() {
