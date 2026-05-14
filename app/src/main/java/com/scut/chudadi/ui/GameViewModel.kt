@@ -20,7 +20,7 @@ class GameViewModel(private val controller: GameController) {
     fun onAiTurn(playerId: String, strategy: PlayStrategy): Boolean {
         val state = controller.state
         val player = state.players.firstOrNull { it.id == playerId } ?: return false
-        val selected = strategy.chooseCards(state, player.handCards, controller.ruleProfile)
+        val selected = strategy.chooseCards(state, player.handCards)
         return if (selected == null) controller.pass(playerId) else controller.playCards(playerId, selected)
     }
 }

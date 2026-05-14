@@ -31,26 +31,10 @@ class RuleEngineTest {
         val canPlayWithoutDiamond3 = RuleEngine.canPlay(
             state = state,
             playerCards = hand,
-            toPlay = listOf(Card(Rank.FIVE, Suit.SPADE)),
-            profile = SouthRuleProfile
+            toPlay = listOf(Card(Rank.FIVE, Suit.SPADE))
         )
 
         assertFalse(canPlayWithoutDiamond3)
-    }
-
-    @Test
-    fun `north first round can play without diamond three`() {
-        val state = newState().apply { firstRound = true }
-        val hand = listOf(Card(Rank.FIVE, Suit.SPADE), Card.DIAMOND_THREE)
-
-        val canPlay = RuleEngine.canPlay(
-            state = state,
-            playerCards = hand,
-            toPlay = listOf(Card(Rank.FIVE, Suit.SPADE)),
-            profile = NorthRuleProfile
-        )
-
-        assertTrue(canPlay)
     }
 
     @Test
@@ -68,7 +52,7 @@ class RuleEngineTest {
             majorSuit = Suit.SPADE
         )
 
-        val result = RuleEngine.compare(current, previous, SouthRuleProfile)
+        val result = RuleEngine.compare(current, previous)
 
         assertTrue(result > 0)
     }

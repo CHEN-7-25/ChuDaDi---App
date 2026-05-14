@@ -30,7 +30,6 @@ import com.scut.chudadi.model.GameConfig
 import com.scut.chudadi.model.HandType
 import com.scut.chudadi.model.PlayerState
 import com.scut.chudadi.model.Rank
-import com.scut.chudadi.model.RuleSetType
 import com.scut.chudadi.model.ScoringMode
 import com.scut.chudadi.model.Suit
 import com.scut.chudadi.network.BluetoothConnectionState
@@ -88,8 +87,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rbHumans2: RadioButton
     private lateinit var rbHumans3: RadioButton
     private lateinit var rbHumans4: RadioButton
-    private lateinit var rbSouth: RadioButton
-    private lateinit var rbNorth: RadioButton
     private lateinit var bluetoothRoomPanel: View
     private lateinit var roomStatePanel: View
     private lateinit var tvSetupSummary: TextView
@@ -193,8 +190,6 @@ class MainActivity : AppCompatActivity() {
         rbHumans2 = findViewById(R.id.rbHumans2)
         rbHumans3 = findViewById(R.id.rbHumans3)
         rbHumans4 = findViewById(R.id.rbHumans4)
-        rbSouth = findViewById(R.id.rbSouth)
-        rbNorth = findViewById(R.id.rbNorth)
         bluetoothRoomPanel = findViewById(R.id.bluetoothRoomPanel)
         roomStatePanel = findViewById(R.id.roomStatePanel)
         tvSetupSummary = findViewById(R.id.tvSetupSummary)
@@ -329,7 +324,6 @@ class MainActivity : AppCompatActivity() {
         readyPlayers.add(localPlayerId)
         rbModeLocal.isChecked = true
         rbHumans2.isChecked = true
-        rbSouth.isChecked = true
         etBluetoothRoom.setText("")
         tvBluetoothStatus.text = getString(R.string.bluetooth_idle)
         initializeLobbySetup()
@@ -793,7 +787,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (bluetoothRole == BluetoothRole.HOST && message.playerId != localPlayerId) {
-            val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
+            val play = HandEvaluator.evaluate(cards)
             if (play == null || !controller.playCards(message.playerId, cards)) {
                 addLog("蓝牙：拒绝 ${message.playerId} 的非法出牌 ${message.cards.joinToString(" ")}")
                 syncManager?.sendMessage(BluetoothMessage.Error("非法出牌：${message.playerId}"))
@@ -853,7 +847,7 @@ class MainActivity : AppCompatActivity() {
 
         controller.state.lastPlay = CardWireCodec.decodeList(message.lastPlayCards)
             ?.takeIf { it.isNotEmpty() }
-            ?.let { HandEvaluator.evaluate(it, controller.ruleProfile) }
+            ?.let { HandEvaluator.evaluate(it) }
         controller.state.lastPlayPlayerId = message.lastPlayPlayerId
         controller.state.passCount = message.passCount
         controller.state.firstRound = message.firstRound
@@ -906,9 +900,8 @@ class MainActivity : AppCompatActivity() {
         roomGameStarted = true
         roundNumber += 1
 
-        val ruleSetType = if (rbNorth.isChecked) RuleSetType.NORTH else RuleSetType.SOUTH
         val players = createPlayers()
-        val config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = ruleSetType)
+        val config = GameConfig(scoringMode = ScoringMode.SCORE)
         controller = GameController(config, players)
         controller.state.lastWinnerId = lastWinnerId
         controller.startGame(seed)
@@ -962,14 +955,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         val cards = selectedCards.toList().sorted()
-        val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
+        val play = HandEvaluator.evaluate(cards)
         if (play == null) {
             playUiSound(errorSoundId)
             setGameMessage("这组牌不是合法牌型。")
             return
         }
 
-        if (!RuleEngine.canPlay(controller.state, humanPlayer().handCards, cards, controller.ruleProfile)) {
+        if (!RuleEngine.canPlay(controller.state, humanPlayer().handCards, cards)) {
             playUiSound(errorSoundId)
             setGameMessage(invalidPlayMessage(cards))
             return
@@ -1038,7 +1031,7 @@ class MainActivity : AppCompatActivity() {
 
         val human = humanPlayer()
         val candidate = PlayCandidateFinder
-            .findValidCandidates(controller.state, human.handCards, controller.ruleProfile)
+            .findValidCandidates(controller.state, human.handCards)
             .firstOrNull()
 
         selectedCards.clear()
@@ -1081,8 +1074,7 @@ class MainActivity : AppCompatActivity() {
             val player = currentPlayer()
             val cards = strategyFor(player.id).chooseCards(
                 controller.state,
-                player.handCards,
-                controller.ruleProfile
+                player.handCards
             )
 
             if (cards == null) {
@@ -1093,7 +1085,7 @@ class MainActivity : AppCompatActivity() {
                     sendBluetoothSnapshot()
                 }
             } else {
-                val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
+                val play = HandEvaluator.evaluate(cards)
                 controller.playCards(player.id, cards)
                 addLog("${player.name} 出牌 ${typeName(play?.type)}：${cardsLabel(cards)}")
                 if (bluetoothRole == BluetoothRole.HOST) {
@@ -1761,7 +1753,7 @@ class MainActivity : AppCompatActivity() {
         if (selectedCards.isEmpty()) return "未选择手牌"
 
         val cards = selectedCards.toList().sorted()
-        val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
+        val play = HandEvaluator.evaluate(cards)
         val type = play?.type?.let { typeName(it) } ?: "非法牌型"
         val playState = if (canPlaySelectedCards()) "可出" else "不可出"
         return "已选：$type · ${cards.size} 张 · $playState  ${cardsLabel(cards)}"
@@ -1784,8 +1776,7 @@ class MainActivity : AppCompatActivity() {
         return RuleEngine.canPlay(
             controller.state,
             humanPlayer().handCards,
-            selectedCards.toList().sorted(),
-            controller.ruleProfile
+            selectedCards.toList().sorted()
         )
     }
 
@@ -1806,9 +1797,7 @@ class MainActivity : AppCompatActivity() {
     private fun invalidPlayMessage(cards: List<Card>): String {
         val state = controller.state
         return when {
-            state.firstRound &&
-                controller.ruleProfile.firstRoundMustContainDiamondThree &&
-                Card.DIAMOND_THREE !in cards -> "南方规则首轮必须包含方块 3。"
+            state.firstRound && Card.DIAMOND_THREE !in cards -> "南方规则首轮必须包含方块 3。"
             state.lastPlay != null && state.lastPlay?.cards?.size != cards.size -> "需要出和上一手相同张数的牌。"
             else -> "这手牌压不过上一手，或者现在还不能这样出。"
         }

@@ -4,13 +4,11 @@ import com.scut.chudadi.model.Card
 import com.scut.chudadi.model.GameState
 import com.scut.chudadi.rule.HandEvaluator
 import com.scut.chudadi.rule.RuleEngine
-import com.scut.chudadi.rule.RuleProfile
 
 object PlayCandidateFinder {
     fun findValidCandidates(
         state: GameState,
-        handCards: List<Card>,
-        ruleProfile: RuleProfile
+        handCards: List<Card>
     ): List<List<Card>> {
         val targetSize = state.lastPlay?.cards?.size
         val sizes = if (targetSize == null) {
@@ -21,15 +19,15 @@ object PlayCandidateFinder {
 
         return sizes
             .flatMap { size -> combinations(handCards.sorted(), size) }
-            .filter { RuleEngine.canPlay(state, handCards, it, ruleProfile) }
-            .sortedWith(candidateComparator(ruleProfile))
+            .filter { RuleEngine.canPlay(state, handCards, it) }
+            .sortedWith(candidateComparator())
     }
 
-    private fun candidateComparator(ruleProfile: RuleProfile): Comparator<List<Card>> {
+    private fun candidateComparator(): Comparator<List<Card>> {
         return compareBy<List<Card>> { it.size }
-            .thenBy { HandEvaluator.evaluate(it, ruleProfile)?.type?.level ?: Int.MAX_VALUE }
-            .thenBy { HandEvaluator.evaluate(it, ruleProfile)?.majorRank?.order ?: Int.MAX_VALUE }
-            .thenBy { HandEvaluator.evaluate(it, ruleProfile)?.majorSuit?.order ?: Int.MAX_VALUE }
+            .thenBy { HandEvaluator.evaluate(it)?.type?.level ?: Int.MAX_VALUE }
+            .thenBy { HandEvaluator.evaluate(it)?.majorRank?.order ?: Int.MAX_VALUE }
+            .thenBy { HandEvaluator.evaluate(it)?.majorSuit?.order ?: Int.MAX_VALUE }
             .thenBy { it.sumOf { card -> card.rank.order * 10 + card.suit.order } }
     }
 

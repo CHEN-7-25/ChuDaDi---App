@@ -13,15 +13,9 @@ enum class ScoringMode {
     WIN_COUNT
 }
 
-enum class RuleSetType {
-    SOUTH,
-    NORTH
-}
-
 data class GameConfig(
     val scoringMode: ScoringMode = ScoringMode.SCORE,
-    val playerCount: Int = 4,
-    val ruleSetType: RuleSetType = RuleSetType.SOUTH
+    val playerCount: Int = 4
 )
 
 data class GameState(
