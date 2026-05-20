@@ -45,7 +45,10 @@ object BluetoothMessageCodec {
                 message.passCount.toString(),
                 message.firstRound.toString(),
                 message.lastWinnerId.orEmpty(),
-                message.lastPlayPlayerId.orEmpty()
+                message.lastPlayPlayerId.orEmpty(),
+                encodeList(message.players),
+                encodeList(message.readyPlayers),
+                encodeList(message.bluetoothPlayers)
             )
             is BluetoothMessage.RoundResult -> join("ROUND", encodeIntMap(message.scoreMap))
             is BluetoothMessage.PlayerOffline -> join("OFFLINE", message.playerId)
@@ -89,7 +92,10 @@ object BluetoothMessageCodec {
                     passCount = fields[7].toInt(),
                     firstRound = fields[8].toBoolean(),
                     lastWinnerId = fields[9].ifEmpty { null },
-                    lastPlayPlayerId = fields.getOrNull(10)?.ifEmpty { null }
+                    lastPlayPlayerId = fields.getOrNull(10)?.ifEmpty { null },
+                    players = fields.getOrNull(11)?.let(::decodeList).orEmpty(),
+                    readyPlayers = fields.getOrNull(12)?.let(::decodeList).orEmpty(),
+                    bluetoothPlayers = fields.getOrNull(13)?.let(::decodeList).orEmpty()
                 )
                 "ROUND" -> BluetoothMessage.RoundResult(decodeIntMap(fields[0]))
                 "OFFLINE" -> BluetoothMessage.PlayerOffline(fields[0])

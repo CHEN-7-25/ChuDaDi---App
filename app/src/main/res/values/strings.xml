@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name">锄大地</string>
     <string name="new_game">开始新局</string>
+    <string name="table_new_game_short">新局</string>
     <string name="reset_match">重置比赛</string>
     <string name="local_game_section">本地开局</string>
     <string name="bluetooth_room_section">蓝牙房间</string>
@@ -25,7 +26,7 @@
     <string name="message_ready">准备开始。</string>
     <string name="log_empty">对局日志会显示在这里。</string>
     <string name="bluetooth_title">蓝牙联机</string>
-    <string name="bluetooth_room_hint">房间名 / 主机 MAC / 已配对设备名</string>
+    <string name="bluetooth_room_hint">主机 MAC / 已配对设备名</string>
     <string name="bluetooth_idle">蓝牙未连接</string>
     <string name="bluetooth_permission">授权蓝牙</string>
     <string name="bluetooth_devices">已配对</string>
@@ -35,4 +36,5 @@
     <string name="bluetooth_join">加入房间</string>
     <string name="bluetooth_disconnect">断开</string>
     <string name="leave_room">返回大厅</string>
+    <string name="table_leave_room_short">大厅</string>
 </resources>

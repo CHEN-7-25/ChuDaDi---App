@@ -77,9 +77,9 @@ ChuDaDi---App/
 1. `BluetoothMessage`：定义加入房间、准备、开局、出牌、过牌、状态快照、结算、掉线、心跳等消息。
 2. `BluetoothMessageCodec`：将消息编码为按行传输的字符串，并负责解码。
 3. `BluetoothGameSyncManager`：基于经典蓝牙 RFCOMM socket 实现主机/客户端连接、收发消息、断线通知。
-4. `BluetoothPermissionHelper`：提供 Android 12 前后的蓝牙运行时权限列表。
+4. `BluetoothPermissionHelper`：提供当前已配对设备连接流程需要的蓝牙运行时权限列表。
 
-当前连接约定：主机调用 `hostRoom(roomId)` 创建房间；客户端调用 `joinRoom(roomId)`，其中 `roomId` 可以传主机设备的蓝牙 MAC 地址，或已配对设备名称。大厅已提供联机模式入口，可授权蓝牙、查看已配对设备、创建房间、加入房间、准备、重连和断开连接。
+当前连接约定：主机调用 `hostRoom(roomId)` 创建房间；客户端调用 `joinRoom(roomId)` 时应传主机设备的蓝牙 MAC 地址或已配对设备名称。房主随机房间号只用于本机显示和服务名，客户端不要把随机房间号当作连接地址。大厅已提供联机模式入口，可授权蓝牙、查看已配对设备、创建房间、加入房间、准备、重连和断开连接。
 
 当前 UI 接入范围：
 1. “已配对”按钮会列出系统已配对设备，点击后自动填入连接地址。

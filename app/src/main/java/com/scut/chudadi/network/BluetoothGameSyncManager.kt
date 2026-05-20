@@ -34,7 +34,7 @@ class BluetoothGameSyncManager(
     private val connections = ConcurrentHashMap<String, Connection>()
     private val playerConnectionIds = ConcurrentHashMap<String, String>()
     private var executor: ExecutorService = Executors.newCachedThreadPool()
-    private var serverSocket: BluetoothServerSocket? = null
+    private val serverSockets = ConcurrentHashMap<String, BluetoothServerSocket>()
     private var messageCallback: ((BluetoothMessage) -> Unit)? = null
     private var statusCallback: ((BluetoothStatus) -> Unit)? = null
     @Volatile private var closed = false
@@ -64,11 +64,11 @@ class BluetoothGameSyncManager(
 
     @SuppressLint("MissingPermission")
     override fun hostRoom(roomId: String) {
-        if (!ensureBluetoothReady()) return
         if (!BluetoothPermissionHelper.hasRequiredPermissions(appContext)) {
             emitStatus(BluetoothConnectionState.ERROR, "缺少蓝牙运行时权限")
             return
         }
+        if (!ensureBluetoothReady()) return
 
         closeSockets()
         ensureExecutor()
@@ -76,31 +76,50 @@ class BluetoothGameSyncManager(
         emitStatus(BluetoothConnectionState.HOSTING, "房间 $roomId 正在等待连接")
 
         executor.execute {
-            try {
-                serverSocket = adapter?.listenUsingRfcommWithServiceRecord(
-                    serviceName(roomId),
-                    serviceUuid
-                )
+            val bluetoothAdapter = adapter
+            if (bluetoothAdapter == null) {
+                emitStatus(BluetoothConnectionState.ERROR, "设备不支持蓝牙")
+                return@execute
+            }
 
-                while (!closed) {
-                    val socket = serverSocket?.accept() ?: break
-                    if (connections.size >= maxClientCount) {
-                        runCatching { socket.close() }
-                        emitStatus(
-                            BluetoothConnectionState.ERROR,
-                            "房间已满，拒绝新的蓝牙连接",
-                            connections.size
+            val errors = mutableListOf<String>()
+            val startedCount = listOf(
+                runCatching {
+                    startAcceptLoop(
+                        channelName = SECURE_CHANNEL_NAME,
+                        serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord(
+                            serviceName(roomId),
+                            serviceUuid
                         )
-                    } else {
-                        registerConnection(socket)
-                    }
-                }
-            } catch (error: IOException) {
-                if (!closed) {
-                    emitStatus(BluetoothConnectionState.ERROR, error.message.orEmpty())
-                }
-            } finally {
-                closeServerSocket()
+                    )
+                }.onFailure { error ->
+                    errors.add("$SECURE_CHANNEL_NAME：${error.message.orEmpty()}")
+                }.isSuccess,
+                runCatching {
+                    startAcceptLoop(
+                        channelName = COMPAT_CHANNEL_NAME,
+                        serverSocket = bluetoothAdapter.listenUsingInsecureRfcommWithServiceRecord(
+                            "${serviceName(roomId)}-Compat",
+                            COMPAT_SERVICE_UUID
+                        )
+                    )
+                }.onFailure { error ->
+                    errors.add("$COMPAT_CHANNEL_NAME：${error.message.orEmpty()}")
+                }.isSuccess
+            ).count { it }
+
+            if (startedCount == 0) {
+                emitStatus(
+                    BluetoothConnectionState.ERROR,
+                    "蓝牙房间监听失败：${errors.joinToString("；")}"
+                )
+                closeServerSockets()
+            } else if (errors.isNotEmpty()) {
+                emitStatus(
+                    BluetoothConnectionState.HOSTING,
+                    "房间正在等待连接，部分通道不可用：${errors.joinToString("；")}",
+                    connections.size
+                )
             }
         }
     }
@@ -116,11 +135,11 @@ class BluetoothGameSyncManager(
 
     @SuppressLint("MissingPermission")
     private fun connectToRoom(roomId: String, firstMessage: BluetoothMessage) {
-        if (!ensureBluetoothReady()) return
         if (!BluetoothPermissionHelper.hasRequiredPermissions(appContext)) {
             emitStatus(BluetoothConnectionState.ERROR, "缺少蓝牙运行时权限")
             return
         }
+        if (!ensureBluetoothReady()) return
 
         closeSockets()
         ensureExecutor()
@@ -129,18 +148,19 @@ class BluetoothGameSyncManager(
 
         executor.execute {
             try {
-                adapter?.cancelDiscovery()
+                if (BluetoothPermissionHelper.hasScanPermission(appContext)) {
+                    runCatching { adapter?.cancelDiscovery() }
+                }
                 val device = findRemoteDevice(roomId)
-                val socket = device.createRfcommSocketToServiceRecord(serviceUuid)
-                socket.connect()
+                val socket = connectSocketWithFallback(device)
                 registerConnection(socket)
                 sendMessage(firstMessage)
             } catch (error: IOException) {
-                emitStatus(BluetoothConnectionState.ERROR, error.message.orEmpty())
-                disconnect()
+                failConnection(error.message.orEmpty())
             } catch (error: IllegalArgumentException) {
-                emitStatus(BluetoothConnectionState.ERROR, error.message.orEmpty())
-                disconnect()
+                failConnection(error.message.orEmpty())
+            } catch (error: SecurityException) {
+                failConnection("缺少蓝牙连接权限：${error.message.orEmpty()}")
             }
         }
     }
@@ -180,6 +200,90 @@ class BluetoothGameSyncManager(
         closeSockets()
         executor.shutdownNow()
         emitStatus(BluetoothConnectionState.DISCONNECTED, "蓝牙连接已断开")
+    }
+
+    private fun failConnection(reason: String) {
+        closed = true
+        closeSockets()
+        executor.shutdownNow()
+        emitStatus(
+            BluetoothConnectionState.ERROR,
+            reason.ifBlank { "蓝牙连接失败，请确认两台手机已系统配对，房主已创建房间，并选择的是房主手机地址。" }
+        )
+    }
+
+    private fun startAcceptLoop(channelName: String, serverSocket: BluetoothServerSocket) {
+        serverSockets[channelName] = serverSocket
+        emitStatus(
+            BluetoothConnectionState.HOSTING,
+            "房间正在等待连接：$channelName",
+            connections.size
+        )
+        executor.execute {
+            try {
+                while (!closed) {
+                    val socket = serverSocket.accept() ?: break
+                    if (connections.size >= maxClientCount) {
+                        runCatching { socket.close() }
+                        emitStatus(
+                            BluetoothConnectionState.ERROR,
+                            "房间已满，拒绝新的蓝牙连接",
+                            connections.size
+                        )
+                    } else {
+                        registerConnection(socket)
+                    }
+                }
+            } catch (error: IOException) {
+                if (!closed) {
+                    emitStatus(
+                        BluetoothConnectionState.ERROR,
+                        "$channelName 监听失败：${error.message.orEmpty()}"
+                    )
+                }
+            } finally {
+                serverSockets.remove(channelName)
+                runCatching { serverSocket.close() }
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun connectSocketWithFallback(device: BluetoothDevice): BluetoothSocket {
+        val errors = mutableListOf<String>()
+        val attempts = listOf(
+            SECURE_CHANNEL_NAME to serviceUuid,
+            COMPAT_CHANNEL_NAME to COMPAT_SERVICE_UUID
+        )
+
+        attempts.forEachIndexed { index, (channelName, uuid) ->
+            if (index > 0) {
+                emitStatus(
+                    BluetoothConnectionState.CONNECTING,
+                    "安全通道失败，正在尝试$channelName",
+                    connections.size
+                )
+            }
+            val socket = if (channelName == SECURE_CHANNEL_NAME) {
+                device.createRfcommSocketToServiceRecord(uuid)
+            } else {
+                device.createInsecureRfcommSocketToServiceRecord(uuid)
+            }
+            try {
+                socket.connect()
+                return socket
+            } catch (error: IOException) {
+                runCatching { socket.close() }
+                errors.add("$channelName：${error.message.orEmpty()}")
+            } catch (error: SecurityException) {
+                runCatching { socket.close() }
+                throw error
+            }
+        }
+
+        throw IOException(
+            "蓝牙连接失败。请确认两台手机已在系统蓝牙配对、房主停留在等待接入页面，并在客户端“已配对”里选择房主手机。失败详情：${errors.joinToString("；")}"
+        )
     }
 
     @SuppressLint("MissingPermission")
@@ -224,13 +328,18 @@ class BluetoothGameSyncManager(
     @SuppressLint("MissingPermission")
     private fun findRemoteDevice(roomId: String): BluetoothDevice {
         val bluetoothAdapter = adapter ?: throw IllegalArgumentException("设备不支持蓝牙")
-        if (BluetoothAdapter.checkBluetoothAddress(roomId)) {
-            return bluetoothAdapter.getRemoteDevice(roomId)
+        val requestedDevice = roomId.trim()
+        val addressInText = MAC_ADDRESS_IN_TEXT.find(requestedDevice)?.value?.uppercase()
+        if (addressInText != null && BluetoothAdapter.checkBluetoothAddress(addressInText)) {
+            return bluetoothAdapter.getRemoteDevice(addressInText)
         }
 
         return bluetoothAdapter.bondedDevices.firstOrNull { device ->
-            device.address == roomId || device.name == roomId
-        } ?: throw IllegalArgumentException("没有找到已配对设备：$roomId")
+            device.address.equals(requestedDevice, ignoreCase = true) ||
+                device.name.orEmpty().equals(requestedDevice, ignoreCase = true)
+        } ?: throw IllegalArgumentException(
+            "没有找到已配对主机设备：$requestedDevice。请先在系统蓝牙完成配对，再点“已配对”选择主机手机；不要填写房主随机房间号。"
+        )
     }
 
     private fun ensureBluetoothReady(): Boolean {
@@ -239,7 +348,11 @@ class BluetoothGameSyncManager(
             emitStatus(BluetoothConnectionState.ERROR, "设备不支持蓝牙")
             return false
         }
-        if (!bluetoothAdapter.isEnabled) {
+        val enabled = runCatching { bluetoothAdapter.isEnabled }.getOrElse { error ->
+            emitStatus(BluetoothConnectionState.ERROR, "缺少蓝牙连接权限：${error.message.orEmpty()}")
+            return false
+        }
+        if (!enabled) {
             emitStatus(BluetoothConnectionState.ERROR, "请先打开系统蓝牙")
             return false
         }
@@ -282,14 +395,16 @@ class BluetoothGameSyncManager(
     }
 
     private fun closeSockets() {
-        closeServerSocket()
+        closeServerSockets()
         connections.keys.toList().forEach { closeConnection(it, notifyOffline = false) }
         playerConnectionIds.clear()
     }
 
-    private fun closeServerSocket() {
-        runCatching { serverSocket?.close() }
-        serverSocket = null
+    private fun closeServerSockets() {
+        serverSockets.values.forEach { serverSocket ->
+            runCatching { serverSocket.close() }
+        }
+        serverSockets.clear()
     }
 
     private fun emitMessage(message: BluetoothMessage) {
@@ -350,7 +465,11 @@ class BluetoothGameSyncManager(
 
     companion object {
         val CHUDADI_SERVICE_UUID: UUID = UUID.fromString("a9695c24-48b7-4c71-a4fb-f1056c97f751")
+        private val COMPAT_SERVICE_UUID: UUID = UUID.fromString("c5c860d7-26b1-45f5-a4c3-4d3fbad6604b")
         private val FORMAL_PLAYER_ID = Regex("p[1-4]")
+        private val MAC_ADDRESS_IN_TEXT = Regex("(?i)([0-9A-F]{2}:){5}[0-9A-F]{2}")
+        private const val SECURE_CHANNEL_NAME = "安全通道"
+        private const val COMPAT_CHANNEL_NAME = "兼容通道"
         private const val DEFAULT_MAX_CLIENT_COUNT = 3
     }
 }

@@ -103,12 +103,39 @@ class BluetoothMessageCodecTest {
             passCount = 1,
             firstRound = false,
             lastWinnerId = "p4",
-            lastPlayPlayerId = "p2"
+            lastPlayPlayerId = "p2",
+            players = listOf("p1", "p2"),
+            readyPlayers = listOf("p1", "p2"),
+            bluetoothPlayers = listOf("p2")
         )
 
         val decoded = BluetoothMessageCodec.decode(BluetoothMessageCodec.encode(message))
 
         assertEquals(message, decoded)
+    }
+
+    @Test
+    fun `snapshot should decode payload without room metadata`() {
+        val decoded = BluetoothMessageCodec.decode(
+            "SNAPSHOT|20260427|p3|HEART-ACE|p2:SPADE-TWO|p1:12,p2:8|p1:10,p2:-2|p2|1|false|p4|p2"
+        )
+
+        assertEquals(
+            BluetoothMessage.GameStateSnapshot(
+                seed = 20260427L,
+                currentPlayerId = "p3",
+                lastPlayCards = listOf("HEART-ACE"),
+                hands = mapOf("p2" to listOf("SPADE-TWO")),
+                handCounts = mapOf("p1" to 12, "p2" to 8),
+                scores = mapOf("p1" to 10, "p2" to -2),
+                finishOrder = listOf("p2"),
+                passCount = 1,
+                firstRound = false,
+                lastWinnerId = "p4",
+                lastPlayPlayerId = "p2"
+            ),
+            decoded
+        )
     }
 
     @Test

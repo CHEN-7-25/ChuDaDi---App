@@ -28,7 +28,10 @@ sealed class BluetoothMessage {
         val passCount: Int,
         val firstRound: Boolean,
         val lastWinnerId: String?,
-        val lastPlayPlayerId: String? = null
+        val lastPlayPlayerId: String? = null,
+        val players: List<String> = emptyList(),
+        val readyPlayers: List<String> = emptyList(),
+        val bluetoothPlayers: List<String> = emptyList()
     ) : BluetoothMessage()
     data class RoundResult(val scoreMap: Map<String, Int>) : BluetoothMessage()
     data class PlayerOffline(val playerId: String) : BluetoothMessage()

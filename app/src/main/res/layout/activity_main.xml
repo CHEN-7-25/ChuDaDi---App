@@ -490,31 +490,31 @@
             android:background="@drawable/table_top_bar"
             android:gravity="center_vertical"
             android:paddingStart="18dp"
-            android:paddingEnd="132dp"
+            android:paddingEnd="136dp"
             android:ellipsize="end"
-            android:maxLines="2"
+            android:singleLine="true"
             android:textColor="@color/casino_cream"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:textStyle="bold" />
 
         <LinearLayout
             android:id="@+id/tableTopSeats"
             android:layout_width="match_parent"
-            android:layout_height="88dp"
+            android:layout_height="62dp"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="62dp"
+            android:layout_marginTop="44dp"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="132dp"
-            android:paddingEnd="132dp" />
+            android:paddingStart="108dp"
+            android:paddingEnd="108dp" />
 
         <LinearLayout
             android:id="@+id/tableLeftSeats"
             android:layout_width="@dimen/table_side_seat_width"
             android:layout_height="wrap_content"
             android:layout_gravity="start|center_vertical"
-            android:layout_marginStart="18dp"
-            android:layout_marginBottom="86dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginBottom="@dimen/table_side_seat_bottom_offset"
             android:gravity="center"
             android:orientation="vertical" />
 
@@ -523,8 +523,8 @@
             android:layout_width="@dimen/table_side_seat_width"
             android:layout_height="wrap_content"
             android:layout_gravity="end|center_vertical"
-            android:layout_marginEnd="18dp"
-            android:layout_marginBottom="86dp"
+            android:layout_marginEnd="12dp"
+            android:layout_marginBottom="@dimen/table_side_seat_bottom_offset"
             android:gravity="center"
             android:orientation="vertical" />
 
@@ -533,7 +533,7 @@
             android:layout_width="@dimen/table_center_width"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:layout_marginBottom="42dp"
+            android:layout_marginBottom="18dp"
             android:background="@drawable/table_center_panel"
             android:elevation="5dp"
             android:gravity="center"
@@ -562,21 +562,25 @@
                 android:orientation="horizontal"
                 android:paddingTop="8dp"
                 android:paddingBottom="2dp" />
-
-            <TextView
-                android:id="@+id/tvTableMessage"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/table_message_panel"
-                android:gravity="center"
-                android:minHeight="38dp"
-                android:paddingStart="10dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="6dp"
-                android:textColor="@color/casino_cream"
-                android:textSize="14sp" />
         </LinearLayout>
+
+        <TextView
+            android:id="@+id/tvTableMessage"
+            android:layout_width="@dimen/table_center_width"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:translationY="78dp"
+            android:background="@drawable/table_message_panel"
+            android:elevation="16dp"
+            android:gravity="center"
+            android:minHeight="38dp"
+            android:paddingStart="10dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="6dp"
+            android:textColor="@color/casino_cream"
+            android:textSize="14sp"
+            android:visibility="gone" />
 
         <HorizontalScrollView
             android:id="@+id/tableHandScroll"
@@ -671,37 +675,43 @@
             android:layout_height="wrap_content"
             android:layout_gravity="top|end"
             android:layout_marginTop="4dp"
-            android:layout_marginEnd="12dp"
+            android:layout_marginEnd="10dp"
             android:orientation="horizontal">
 
-	            <Button
+	            <TextView
 	                android:id="@+id/btnTableNewGame"
-	                android:layout_width="48dp"
-	                android:layout_height="34dp"
-	                android:background="@drawable/table_action_secondary"
-	                android:backgroundTint="@null"
+	                android:layout_width="54dp"
+	                android:layout_height="30dp"
+	                android:background="@drawable/table_icon_button"
+	                android:clickable="true"
 	                android:contentDescription="@string/new_game"
-	                android:drawableStart="@drawable/ic_restart_alt_24"
-	                android:minWidth="0dp"
-	                android:minHeight="0dp"
-	                android:paddingStart="12dp"
-	                android:paddingEnd="12dp"
-	                android:text="" />
+	                android:focusable="true"
+	                android:gravity="center"
+	                android:includeFontPadding="false"
+	                android:paddingStart="4dp"
+	                android:paddingEnd="4dp"
+	                android:text="@string/table_new_game_short"
+	                android:textColor="@color/casino_cream"
+	                android:textSize="11sp"
+	                android:textStyle="bold" />
 
-            <Button
+            <TextView
                 android:id="@+id/btnTableLeaveRoom"
-	                android:layout_width="48dp"
-	                android:layout_height="34dp"
-	                android:layout_marginStart="8dp"
-	                android:background="@drawable/table_action_secondary"
-	                android:backgroundTint="@null"
+	                android:layout_width="54dp"
+	                android:layout_height="30dp"
+	                android:layout_marginStart="6dp"
+	                android:background="@drawable/table_icon_button"
+	                android:clickable="true"
 	                android:contentDescription="@string/leave_room"
-	                android:drawableStart="@drawable/ic_logout_24"
-	                android:minWidth="0dp"
-	                android:minHeight="0dp"
-	                android:paddingStart="12dp"
-	                android:paddingEnd="12dp"
-	                android:text="" />
+	                android:focusable="true"
+	                android:gravity="center"
+	                android:includeFontPadding="false"
+	                android:paddingStart="4dp"
+	                android:paddingEnd="4dp"
+	                android:text="@string/table_leave_room_short"
+	                android:textColor="@color/casino_cream"
+	                android:textSize="11sp"
+	                android:textStyle="bold" />
         </LinearLayout>
     </FrameLayout>
 </FrameLayout>
