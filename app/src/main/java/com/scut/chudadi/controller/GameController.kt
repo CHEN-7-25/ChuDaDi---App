@@ -53,7 +53,6 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
             }
         }
 
-        completeLastRemainingPlayerIfNeeded()
         if (!isRoundComplete()) {
             nextTurn()
         }
@@ -108,7 +107,7 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
         }
     }
 
-    fun isRoundComplete(): Boolean = state.finishOrder.size >= state.players.size
+    fun isRoundComplete(): Boolean = state.finishOrder.isNotEmpty()
 
     private fun markFinished(player: PlayerState) {
         if (player.id !in state.finishOrder) {
@@ -116,19 +115,18 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
         }
     }
 
-    private fun completeLastRemainingPlayerIfNeeded() {
-        val active = state.players.filter { it.id !in state.finishOrder }
-        if (active.size == 1) {
-            active.first().handCards.clear()
-            markFinished(active.first())
-        }
-    }
-
     private fun completedFinishOrder(): List<String> {
-        return buildList {
-            addAll(state.finishOrder.distinct())
-            addAll(state.players.map { it.id }.filter { it !in this })
-        }
+        val finishedIds = state.finishOrder.distinct()
+        val seatOrder = state.players.mapIndexed { index, player -> player.id to index }.toMap()
+        val unfinishedIds = state.players
+            .filter { it.id !in finishedIds }
+            .sortedWith(
+                compareBy<PlayerState> { it.handCards.size }
+                    .thenBy { seatOrder[it.id] ?: Int.MAX_VALUE }
+            )
+            .map { it.id }
+
+        return finishedIds + unfinishedIds
     }
 
     private fun activePlayerIds(): Set<String> {

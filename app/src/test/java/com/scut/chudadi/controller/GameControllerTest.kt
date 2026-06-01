@@ -10,6 +10,7 @@ import com.scut.chudadi.model.Suit
 import com.scut.chudadi.rule.NorthRuleProfile
 import com.scut.chudadi.rule.SouthRuleProfile
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -62,7 +63,7 @@ class GameControllerTest {
     }
 
     @Test
-    fun `round should continue after first player finishes`() {
+    fun `round should complete after first player finishes`() {
         val controller = GameController(
             config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
             players = players()
@@ -76,12 +77,12 @@ class GameControllerTest {
         assertTrue(controller.playCards("p1", listOf(Card(Rank.THREE, Suit.DIAMOND))))
 
         assertEquals(listOf("p1"), controller.state.finishOrder)
-        assertEquals(1, controller.state.currentPlayerIndex)
-        assertTrue(!controller.isRoundComplete())
+        assertEquals(0, controller.state.currentPlayerIndex)
+        assertTrue(controller.isRoundComplete())
     }
 
     @Test
-    fun `all remaining players must respond before clearing finished player's last play`() {
+    fun `remaining players cannot act after first player finishes`() {
         val controller = GameController(
             config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
             players = players()
@@ -93,38 +94,46 @@ class GameControllerTest {
         controller.state.currentPlayerIndex = 0
 
         assertTrue(controller.playCards("p1", listOf(Card(Rank.THREE, Suit.DIAMOND))))
-        assertTrue(controller.pass("p2"))
-        assertTrue(controller.pass("p3"))
 
-        assertEquals(2, controller.state.passCount)
-        assertEquals(3, controller.state.currentPlayerIndex)
-        assertTrue(controller.state.lastPlay != null)
-
-        assertTrue(controller.pass("p4"))
-
+        assertFalse(controller.pass("p2"))
         assertEquals(0, controller.state.passCount)
-        assertEquals(1, controller.state.currentPlayerIndex)
-        assertEquals(null, controller.state.lastPlay)
+        assertEquals(0, controller.state.currentPlayerIndex)
+        assertTrue(controller.state.lastPlay != null)
     }
 
     @Test
-    fun `last remaining player should be ranked fourth automatically`() {
+    fun `settlement should rank unfinished players by remaining cards`() {
         val controller = GameController(
             config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
             players = players()
         )
         controller.state.players[0].handCards.add(Card(Rank.THREE, Suit.DIAMOND))
-        controller.state.players[1].handCards.add(Card(Rank.FOUR, Suit.DIAMOND))
+        controller.state.players[1].handCards.addAll(
+            listOf(
+                Card(Rank.FOUR, Suit.DIAMOND),
+                Card(Rank.FIVE, Suit.CLUB),
+                Card(Rank.SIX, Suit.SPADE)
+            )
+        )
         controller.state.players[2].handCards.add(Card(Rank.FIVE, Suit.DIAMOND))
-        controller.state.players[3].handCards.add(Card(Rank.SIX, Suit.DIAMOND))
+        controller.state.players[3].handCards.addAll(
+            listOf(
+                Card(Rank.SIX, Suit.DIAMOND),
+                Card(Rank.SEVEN, Suit.CLUB)
+            )
+        )
         controller.state.currentPlayerIndex = 0
 
         assertTrue(controller.playCards("p1", listOf(Card(Rank.THREE, Suit.DIAMOND))))
-        assertTrue(controller.playCards("p2", listOf(Card(Rank.FOUR, Suit.DIAMOND))))
-        assertTrue(controller.playCards("p3", listOf(Card(Rank.FIVE, Suit.DIAMOND))))
 
-        assertEquals(listOf("p1", "p2", "p3", "p4"), controller.state.finishOrder)
-        assertEquals(0, controller.state.players[3].handCards.size)
+        val result = controller.settleRound()
+
+        assertEquals(listOf("p1"), controller.state.finishOrder)
+        assertEquals(3, controller.state.players[1].handCards.size)
+        assertEquals(3, result["p1"])
+        assertEquals(1, result["p3"])
+        assertEquals(-1, result["p4"])
+        assertEquals(-3, result["p2"])
         assertTrue(controller.isRoundComplete())
     }
 
