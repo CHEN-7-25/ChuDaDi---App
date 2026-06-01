@@ -132,6 +132,8 @@ class MainActivity : AppCompatActivity() {
     private var selectedRuleSetType = RuleSetType.SOUTH
     private var shouldFadeNextTablePrompt = false
     private var lastTablePromptText: String? = null
+    private var turnTimerPlayerId: String? = null
+    private var turnTimerDeadlineAt = 0L
 
     private val heartbeatRunnable = object : Runnable {
         override fun run() {
@@ -148,6 +150,29 @@ class MainActivity : AppCompatActivity() {
                 }
                 handler.postDelayed(this, HEARTBEAT_INTERVAL_MS)
             }
+        }
+    }
+
+    private val turnCountdownRunnable = object : Runnable {
+        override fun run() {
+            if (!::controller.isInitialized || !roomGameStarted || roundOver) {
+                stopTurnCountdown()
+                return
+            }
+
+            val timerPlayerId = turnTimerPlayerId
+            if (timerPlayerId == null || timerPlayerId != currentPlayer().id) {
+                syncTurnCountdown(reset = true)
+                return
+            }
+
+            updateTurnCountdownUi()
+            if (System.currentTimeMillis() >= turnTimerDeadlineAt) {
+                handleTurnTimeout(timerPlayerId)
+                return
+            }
+
+            handler.postDelayed(this, TURN_COUNTDOWN_TICK_MS)
         }
     }
 
@@ -252,6 +277,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
         syncManager?.disconnect()
         if (::soundPool.isInitialized) {
             soundPool.release()
@@ -379,6 +405,8 @@ class MainActivity : AppCompatActivity() {
         matchScores.clear()
         visibleHandCounts.clear()
         logLines.clear()
+        turnTimerPlayerId = null
+        turnTimerDeadlineAt = 0L
         lastHeartbeatByPlayer.clear()
         bluetoothHumanSeats.clear()
         clientSeatByRequestId.clear()
@@ -568,6 +596,7 @@ class MainActivity : AppCompatActivity() {
         readyPlayers.add(localPlayerId)
         tvBluetoothStatus.text = "蓝牙未连接"
         roomGameStarted = false
+        stopTurnCountdown()
         renderRoomState()
     }
 
@@ -1024,6 +1053,11 @@ class MainActivity : AppCompatActivity() {
         if (bluetoothRole != BluetoothRole.CLIENT) {
             waitingForHost = false
         }
+        if (roundOver) {
+            stopTurnCountdown()
+        } else {
+            syncTurnCountdown(reset = false)
+        }
 
         addLog(
             "蓝牙快照：当前 ${message.currentPlayerId}，手牌数 ${
@@ -1121,6 +1155,7 @@ class MainActivity : AppCompatActivity() {
         roomGameStarted = true
         roundNumber += 1
         setSelectedRule(ruleSetType)
+        stopTurnCountdown()
 
         val players = createPlayers()
         val config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = ruleSetType)
@@ -1149,6 +1184,7 @@ class MainActivity : AppCompatActivity() {
                 "等待其他玩家。"
             }
         )
+        syncTurnCountdown(reset = true)
         render()
         runAiTurns()
     }
@@ -1167,6 +1203,7 @@ class MainActivity : AppCompatActivity() {
         roundNumber = 0
         roundOver = false
         roomGameStarted = false
+        stopTurnCountdown()
         if (bluetoothRole != BluetoothRole.LOCAL) {
             startHeartbeatLoop()
         }
@@ -1281,6 +1318,7 @@ class MainActivity : AppCompatActivity() {
 
         val message = if (currentPlayer().id == localPlayerId) "轮到你了。" else "等待其他玩家..."
         setGameMessage(message, fade = message == "轮到你了。")
+        syncTurnCountdown(reset = true)
         render()
         runAiTurns()
     }
@@ -1332,6 +1370,7 @@ class MainActivity : AppCompatActivity() {
     private fun finishRound() {
         roundOver = true
         selectedCards.clear()
+        stopTurnCountdown()
 
         val scoreMap = controller.settleRound()
         scoreMap.forEach { (playerId, delta) ->
@@ -1358,15 +1397,7 @@ class MainActivity : AppCompatActivity() {
 
         updateVisibleHandCountsFromLocalState()
         val current = currentPlayer()
-        tvStatus.text = buildString {
-            append("当前：${current.name}")
-            append("    规则：${controller.ruleProfile.displayName}")
-            append("    局数：${roundNumber}")
-            append("    已过牌：${controller.state.passCount}")
-            if (bluetoothRole != BluetoothRole.LOCAL) {
-                append("    你的座位：${localPlayerId}")
-            }
-        }
+        tvStatus.text = tableStatusText(current)
 
         tvLastPlay.text = controller.state.lastPlay?.let {
             "上一手：${typeName(it.type)} ${cardsLabel(it.cards)}"
@@ -1388,22 +1419,7 @@ class MainActivity : AppCompatActivity() {
     private fun renderTablePage() {
         if (!::roomPage.isInitialized || roomPage.visibility != View.VISIBLE) return
 
-        val modeLabel = when (bluetoothRole) {
-            BluetoothRole.LOCAL -> "AI 对局"
-            BluetoothRole.HOST -> if (roomGameStarted) "房主对局中" else "等待真人蓝牙接入"
-            BluetoothRole.CLIENT -> if (roomGameStarted) "蓝牙对局中" else "等待房主开局"
-        }
-        tvTableStatus.text = buildString {
-            append("锄大地")
-            if (::controller.isInitialized) {
-                append(" · ${controller.ruleProfile.displayName}")
-                append(" · 第 ${roundNumber} 局")
-                append(" · 已过 ${controller.state.passCount}")
-                append(" · $modeLabel")
-            } else {
-                append(" · $modeLabel")
-            }
-        }
+        tvTableStatus.text = tableTopStatusText()
         val canStartTableGame = bluetoothRole != BluetoothRole.CLIENT
         btnTableNewGame.isEnabled = canStartTableGame
         btnTableNewGame.alpha = if (canStartTableGame) 1f else 0.45f
@@ -1445,6 +1461,40 @@ class MainActivity : AppCompatActivity() {
             passEnabled = humanTurn && RuleEngine.canPass(controller.state) && !waitingForHost,
             hintEnabled = humanTurn && !waitingForHost
         )
+    }
+
+    private fun tableStatusText(current: PlayerState = currentPlayer()): String {
+        return buildString {
+            append("当前：${current.name}")
+            append("    规则：${controller.ruleProfile.displayName}")
+            append("    局数：${roundNumber}")
+            append("    已过牌：${controller.state.passCount}")
+            turnCountdownLabel()?.let { append("    $it") }
+            if (bluetoothRole != BluetoothRole.LOCAL) {
+                append("    你的座位：${localPlayerId}")
+            }
+        }
+    }
+
+    private fun tableTopStatusText(): String {
+        val modeLabel = when (bluetoothRole) {
+            BluetoothRole.LOCAL -> "AI 对局"
+            BluetoothRole.HOST -> if (roomGameStarted) "房主对局中" else "等待真人蓝牙接入"
+            BluetoothRole.CLIENT -> if (roomGameStarted) "蓝牙对局中" else "等待房主开局"
+        }
+
+        return buildString {
+            append("锄大地")
+            if (::controller.isInitialized) {
+                append(" · ${controller.ruleProfile.displayName}")
+                append(" · 第 ${roundNumber} 局")
+                append(" · 已过 ${controller.state.passCount}")
+                turnCountdownLabel()?.let { append(" · $it") }
+                append(" · $modeLabel")
+            } else {
+                append(" · $modeLabel")
+            }
+        }
     }
 
     private fun renderTableSeats() {
@@ -2029,6 +2079,141 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    private fun syncTurnCountdown(reset: Boolean) {
+        if (!::controller.isInitialized || !roomGameStarted || roundOver) {
+            stopTurnCountdown()
+            return
+        }
+
+        val currentId = currentPlayer().id
+        if (reset || turnTimerPlayerId != currentId) {
+            turnTimerPlayerId = currentId
+            turnTimerDeadlineAt = System.currentTimeMillis() + TURN_TIME_LIMIT_MS
+        }
+
+        handler.removeCallbacks(turnCountdownRunnable)
+        handler.post(turnCountdownRunnable)
+        updateTurnCountdownUi()
+    }
+
+    private fun stopTurnCountdown() {
+        handler.removeCallbacks(turnCountdownRunnable)
+        turnTimerPlayerId = null
+        turnTimerDeadlineAt = 0L
+    }
+
+    private fun updateTurnCountdownUi() {
+        if (!::controller.isInitialized || !::tvStatus.isInitialized) return
+        tvStatus.text = tableStatusText()
+        if (::roomPage.isInitialized && roomPage.visibility == View.VISIBLE) {
+            tvTableStatus.text = tableTopStatusText()
+        }
+    }
+
+    private fun turnCountdownLabel(): String? {
+        if (!::controller.isInitialized || !roomGameStarted || roundOver) return null
+        if (turnTimerPlayerId != currentPlayer().id || turnTimerDeadlineAt <= 0L) return null
+        return "倒计时 ${turnCountdownRemainingSeconds()}s"
+    }
+
+    private fun turnCountdownRemainingSeconds(): Int {
+        val remainingMs = (turnTimerDeadlineAt - System.currentTimeMillis()).coerceAtLeast(0L)
+        return ((remainingMs + TURN_COUNTDOWN_TICK_MS - 1) / TURN_COUNTDOWN_TICK_MS).toInt()
+    }
+
+    private fun handleTurnTimeout(playerId: String) {
+        if (!::controller.isInitialized || roundOver || currentPlayer().id != playerId) return
+        if (!shouldHandleTurnTimeout(playerId)) {
+            updateTurnCountdownUi()
+            return
+        }
+
+        stopTurnCountdown()
+        selectedCards.clear()
+        if (RuleEngine.canPass(controller.state)) {
+            autoPassTimedOutPlayer(playerId)
+        } else {
+            autoPlayTimedOutPlayer(playerId)
+        }
+    }
+
+    private fun shouldHandleTurnTimeout(playerId: String): Boolean {
+        if (waitingForHost) return false
+        return when (bluetoothRole) {
+            BluetoothRole.LOCAL -> true
+            BluetoothRole.HOST -> true
+            BluetoothRole.CLIENT -> playerId == localPlayerId
+        }
+    }
+
+    private fun autoPassTimedOutPlayer(playerId: String) {
+        if (bluetoothRole == BluetoothRole.CLIENT) {
+            syncManager?.sendMessage(BluetoothMessage.Pass(playerId))
+            waitingForHost = true
+            playUiSound(passSoundId)
+            addLog("${playerName(playerId)} 超时自动过牌")
+            setGameMessage("倒计时结束，已自动过牌，等待主机确认。")
+            render()
+            return
+        }
+
+        if (!controller.pass(playerId)) {
+            autoPlayTimedOutPlayer(playerId)
+            return
+        }
+
+        playUiSound(passSoundId)
+        addLog("${playerName(playerId)} 超时自动过牌")
+        if (bluetoothRole == BluetoothRole.HOST) {
+            syncManager?.sendMessage(BluetoothMessage.Pass(playerId))
+            sendBluetoothSnapshot()
+        }
+        afterAction()
+    }
+
+    private fun autoPlayTimedOutPlayer(playerId: String) {
+        val player = controller.state.players.firstOrNull { it.id == playerId } ?: return
+        val cards = PlayCandidateFinder
+            .findValidCandidates(controller.state, player.handCards, controller.ruleProfile)
+            .firstOrNull()
+
+        if (cards == null) {
+            addLog("${playerName(playerId)} 超时，但没有可自动出的合法牌")
+            setGameMessage("${playerName(playerId)} 超时，但没有可自动出的合法牌。")
+            render()
+            return
+        }
+
+        val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
+        if (bluetoothRole == BluetoothRole.CLIENT) {
+            syncManager?.sendMessage(
+                BluetoothMessage.PlayCards(playerId, CardWireCodec.encodeList(cards))
+            )
+            waitingForHost = true
+            playUiSound(playSoundId)
+            addLog("${playerName(playerId)} 超时自动出牌 ${typeName(play?.type)}：${cardsLabel(cards)}")
+            setGameMessage("倒计时结束，已自动出牌，等待主机确认。")
+            render()
+            return
+        }
+
+        if (!controller.playCards(playerId, cards)) {
+            addLog("${playerName(playerId)} 超时自动出牌失败")
+            render()
+            return
+        }
+
+        playUiSound(playSoundId)
+        addLog("${playerName(playerId)} 超时自动出牌 ${typeName(play?.type)}：${cardsLabel(cards)}")
+        if (bluetoothRole == BluetoothRole.HOST) {
+            syncManager?.sendMessage(
+                BluetoothMessage.PlayCards(playerId, CardWireCodec.encodeList(cards))
+            )
+            sendBluetoothSnapshot()
+        }
+        afterAction()
+    }
+
     private fun renderLog() {
         tvLog.text = if (logLines.isEmpty()) {
             "对局日志会显示在这里。"
@@ -2405,6 +2590,8 @@ class MainActivity : AppCompatActivity() {
         private const val SETUP_RESERVED_WIDTH_DP = 32
         private const val TABLE_RESERVED_WIDTH_DP = 144
         private const val AI_TURN_DELAY_MS = 700L
+        private const val TURN_TIME_LIMIT_MS = 10_000L
+        private const val TURN_COUNTDOWN_TICK_MS = 1_000L
         private const val MESSAGE_FADE_IN_MS = 180L
         private const val MESSAGE_HOLD_MS = 1_250L
         private const val MESSAGE_FADE_OUT_MS = 520L
