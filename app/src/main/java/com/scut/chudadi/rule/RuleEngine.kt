@@ -9,22 +9,30 @@ object RuleEngine {
     fun canPlay(
         state: GameState,
         playerCards: List<Card>,
-        toPlay: List<Card>
+        toPlay: List<Card>,
+        profile: RuleProfile = SouthRuleProfile
     ): Boolean {
         if (!playerCards.containsAll(toPlay)) return false
 
-        val currentPlay = HandEvaluator.evaluate(toPlay) ?: return false
-        if (state.firstRound && !toPlay.contains(Card.DIAMOND_THREE)) {
+        val currentPlay = HandEvaluator.evaluate(toPlay, profile) ?: return false
+        if (state.firstRound &&
+            profile.firstRoundMustContainDiamondThree &&
+            !toPlay.contains(Card.DIAMOND_THREE)
+        ) {
             return false
         }
 
         val lastPlay = state.lastPlay ?: return true
         if (lastPlay.cards.size != currentPlay.cards.size) return false
 
-        return compare(currentPlay, lastPlay) > 0
+        return compare(currentPlay, lastPlay, profile) > 0
     }
 
-    fun compare(current: Play, previous: Play): Int {
+    fun compare(
+        current: Play,
+        previous: Play,
+        profile: RuleProfile = SouthRuleProfile
+    ): Int {
         if (current.type.cardCount != previous.type.cardCount) {
             return current.type.cardCount - previous.type.cardCount
         }
@@ -36,6 +44,7 @@ object RuleEngine {
         val rankDiff = current.majorRank.order - previous.majorRank.order
         if (rankDiff != 0) return rankDiff
 
+        if (!profile.compareSuitWhenMajorRankSame) return 0
         return current.majorSuit.order - previous.majorSuit.order
     }
 

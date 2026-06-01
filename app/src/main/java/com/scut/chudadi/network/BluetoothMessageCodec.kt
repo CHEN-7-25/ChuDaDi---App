@@ -1,5 +1,6 @@
 package com.scut.chudadi.network
 
+import com.scut.chudadi.model.RuleSetType
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -19,9 +20,14 @@ object BluetoothMessageCodec {
                 "ROOM",
                 encodeList(message.players),
                 encodeList(message.readyPlayers),
-                encodeList(message.bluetoothPlayers)
+                encodeList(message.bluetoothPlayers),
+                message.ruleSetType.name
             )
-            is BluetoothMessage.StartGame -> join("START", message.seed.toString())
+            is BluetoothMessage.StartGame -> join(
+                "START",
+                message.seed.toString(),
+                message.ruleSetType.name
+            )
             is BluetoothMessage.PlayCards -> join(
                 "PLAY",
                 message.playerId,
@@ -48,7 +54,8 @@ object BluetoothMessageCodec {
                 message.lastPlayPlayerId.orEmpty(),
                 encodeList(message.players),
                 encodeList(message.readyPlayers),
-                encodeList(message.bluetoothPlayers)
+                encodeList(message.bluetoothPlayers),
+                message.ruleSetType.name
             )
             is BluetoothMessage.RoundResult -> join("ROUND", encodeIntMap(message.scoreMap))
             is BluetoothMessage.PlayerOffline -> join("OFFLINE", message.playerId)
@@ -75,9 +82,13 @@ object BluetoothMessageCodec {
                 "ROOM" -> BluetoothMessage.RoomState(
                     players = decodeList(fields[0]),
                     readyPlayers = fields.getOrNull(1)?.let(::decodeList).orEmpty(),
-                    bluetoothPlayers = fields.getOrNull(2)?.let(::decodeList).orEmpty()
+                    bluetoothPlayers = fields.getOrNull(2)?.let(::decodeList).orEmpty(),
+                    ruleSetType = decodeRuleSetType(fields.getOrNull(3))
                 )
-                "START" -> BluetoothMessage.StartGame(fields[0].toLong())
+                "START" -> BluetoothMessage.StartGame(
+                    seed = fields[0].toLong(),
+                    ruleSetType = decodeRuleSetType(fields.getOrNull(1))
+                )
                 "PLAY" -> BluetoothMessage.PlayCards(fields[0], decodeList(fields[1]))
                 "PASS" -> BluetoothMessage.Pass(fields[0])
                 "HAND" -> BluetoothMessage.PrivateHand(fields[0], decodeList(fields[1]))
@@ -95,7 +106,8 @@ object BluetoothMessageCodec {
                     lastPlayPlayerId = fields.getOrNull(10)?.ifEmpty { null },
                     players = fields.getOrNull(11)?.let(::decodeList).orEmpty(),
                     readyPlayers = fields.getOrNull(12)?.let(::decodeList).orEmpty(),
-                    bluetoothPlayers = fields.getOrNull(13)?.let(::decodeList).orEmpty()
+                    bluetoothPlayers = fields.getOrNull(13)?.let(::decodeList).orEmpty(),
+                    ruleSetType = decodeRuleSetType(fields.getOrNull(14))
                 )
                 "ROUND" -> BluetoothMessage.RoundResult(decodeIntMap(fields[0]))
                 "OFFLINE" -> BluetoothMessage.PlayerOffline(fields[0])
@@ -170,6 +182,13 @@ object BluetoothMessageCodec {
 
     private fun decodeValue(value: String): String {
         return URLDecoder.decode(value, StandardCharsets.UTF_8.name())
+    }
+
+    private fun decodeRuleSetType(value: String?): RuleSetType {
+        return value
+            ?.takeIf { it.isNotBlank() }
+            ?.let { runCatching { RuleSetType.valueOf(it) }.getOrNull() }
+            ?: RuleSetType.SOUTH
     }
 
     private const val FIELD_SEPARATOR = "|"

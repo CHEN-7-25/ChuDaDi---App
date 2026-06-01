@@ -8,6 +8,10 @@
     <string name="room_state_section">房间状态 / 玩家准备状态</string>
     <string name="mode_local">本地</string>
     <string name="mode_bluetooth">联机</string>
+    <string name="rule_section">规则选择</string>
+    <string name="south_rule">南方规则</string>
+    <string name="north_rule">北方规则</string>
+    <string name="apply_rule">应用规则</string>
     <string name="human_count_title">真人玩家数量</string>
     <string name="humans_2">2 位真人</string>
     <string name="humans_3">3 位真人</string>
@@ -35,6 +39,7 @@
     <string name="bluetooth_host">创建房间</string>
     <string name="bluetooth_join">加入房间</string>
     <string name="bluetooth_disconnect">断开</string>
+    <string name="enter_table">进入牌桌</string>
     <string name="leave_room">返回大厅</string>
     <string name="table_leave_room_short">大厅</string>
 </resources>

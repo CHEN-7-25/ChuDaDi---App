@@ -4,8 +4,10 @@ import com.scut.chudadi.model.Card
 import com.scut.chudadi.model.GameConfig
 import com.scut.chudadi.model.PlayerState
 import com.scut.chudadi.model.Rank
+import com.scut.chudadi.model.RuleSetType
 import com.scut.chudadi.model.ScoringMode
 import com.scut.chudadi.model.Suit
+import com.scut.chudadi.rule.NorthRuleProfile
 import com.scut.chudadi.rule.SouthRuleProfile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,7 +29,16 @@ class GameControllerTest {
         val p = players().toMutableList()
         p[2].handCards.add(Card.DIAMOND_THREE)
 
-        val first = SouthRuleProfile.selectFirstPlayer(p)
+        val first = SouthRuleProfile.selectFirstPlayer(p, null)
+
+        assertEquals(2, first)
+    }
+
+    @Test
+    fun `north first player should be last winner when available`() {
+        val p = players()
+
+        val first = NorthRuleProfile.selectFirstPlayer(p, "p3")
 
         assertEquals(2, first)
     }
@@ -35,7 +46,7 @@ class GameControllerTest {
     @Test
     fun `score mode should calculate points by full finish order`() {
         val controller = GameController(
-            config = GameConfig(scoringMode = ScoringMode.SCORE),
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.SOUTH),
             players = players()
         )
 
@@ -53,7 +64,7 @@ class GameControllerTest {
     @Test
     fun `round should continue after first player finishes`() {
         val controller = GameController(
-            config = GameConfig(scoringMode = ScoringMode.SCORE),
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
             players = players()
         )
         controller.state.players[0].handCards.add(Card(Rank.THREE, Suit.DIAMOND))
@@ -72,7 +83,7 @@ class GameControllerTest {
     @Test
     fun `all remaining players must respond before clearing finished player's last play`() {
         val controller = GameController(
-            config = GameConfig(scoringMode = ScoringMode.SCORE),
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
             players = players()
         )
         controller.state.players[0].handCards.add(Card(Rank.THREE, Suit.DIAMOND))
@@ -99,7 +110,7 @@ class GameControllerTest {
     @Test
     fun `last remaining player should be ranked fourth automatically`() {
         val controller = GameController(
-            config = GameConfig(scoringMode = ScoringMode.SCORE),
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
             players = players()
         )
         controller.state.players[0].handCards.add(Card(Rank.THREE, Suit.DIAMOND))
@@ -120,11 +131,11 @@ class GameControllerTest {
     @Test
     fun `same seed should deal same hands`() {
         val first = GameController(
-            config = GameConfig(scoringMode = ScoringMode.SCORE),
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.SOUTH),
             players = players()
         )
         val second = GameController(
-            config = GameConfig(scoringMode = ScoringMode.SCORE),
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.SOUTH),
             players = players()
         )
 
@@ -136,6 +147,19 @@ class GameControllerTest {
             second.state.players.map { it.handCards.toList() }
         )
         assertEquals(20260427L, first.state.roundSeed)
+    }
+
+    @Test
+    fun `north seeded game should keep last winner as first player`() {
+        val controller = GameController(
+            config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = RuleSetType.NORTH),
+            players = players()
+        )
+
+        controller.state.lastWinnerId = "p4"
+        controller.startGame(seed = 1L)
+
+        assertEquals(3, controller.state.currentPlayerIndex)
     }
 
 }

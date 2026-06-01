@@ -115,6 +115,71 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/rulePanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/lobby_section_panel"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/rule_section"
+                android:textColor="@color/casino_cream"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <RadioGroup
+                    android:id="@+id/rgRuleSet"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rbSouth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:checked="true"
+                        android:buttonTint="@color/casino_gold"
+                        android:text="@string/south_rule"
+                        android:textColor="@color/casino_cream" />
+
+                    <RadioButton
+                        android:id="@+id/rbNorth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:buttonTint="@color/casino_gold"
+                        android:text="@string/north_rule"
+                        android:textColor="@color/casino_cream" />
+                </RadioGroup>
+
+                <Button
+                    android:id="@+id/btnApplyRule"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/button_secondary"
+                    android:backgroundTint="@null"
+                    android:minHeight="42dp"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="14dp"
+                    android:text="@string/apply_rule"
+                    android:textColor="@color/casino_cream" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/bluetoothRoomPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -238,21 +303,20 @@
                 android:layout_marginTop="6dp"
                 android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnBluetoothHost"
+	                <Button
+	                    android:id="@+id/btnBluetoothHost"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/button_room_host"
-                    android:backgroundTint="@null"
-                    android:minHeight="44dp"
-                    android:text="@string/bluetooth_host"
-                    android:textColor="@color/casino_cream"
-                    android:visibility="gone" />
+	                    android:backgroundTint="@null"
+	                    android:minHeight="44dp"
+	                    android:text="@string/bluetooth_host"
+	                    android:textColor="@color/casino_cream" />
 
-                <Button
-                    android:id="@+id/btnBluetoothJoin"
+	                <Button
+	                    android:id="@+id/btnBluetoothJoin"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
@@ -260,7 +324,26 @@
                     android:background="@drawable/button_secondary"
                     android:backgroundTint="@null"
                     android:minHeight="44dp"
-                    android:text="@string/bluetooth_join"
+	                    android:text="@string/bluetooth_join"
+	                    android:textColor="@color/casino_cream" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnEnterTable"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/button_secondary"
+                    android:backgroundTint="@null"
+                    android:minHeight="44dp"
+                    android:text="@string/enter_table"
                     android:textColor="@color/casino_cream" />
 
                 <Button

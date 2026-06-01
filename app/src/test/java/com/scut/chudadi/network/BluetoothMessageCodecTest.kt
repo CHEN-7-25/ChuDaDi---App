@@ -1,5 +1,6 @@
 package com.scut.chudadi.network
 
+import com.scut.chudadi.model.RuleSetType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -56,7 +57,8 @@ class BluetoothMessageCodecTest {
         val message = BluetoothMessage.RoomState(
             players = listOf("p1", "p2", "p3"),
             readyPlayers = listOf("p1", "p3"),
-            bluetoothPlayers = listOf("p2", "p3")
+            bluetoothPlayers = listOf("p2", "p3"),
+            ruleSetType = RuleSetType.NORTH
         )
 
         val decoded = BluetoothMessageCodec.decode(BluetoothMessageCodec.encode(message))
@@ -88,6 +90,25 @@ class BluetoothMessageCodecTest {
     }
 
     @Test
+    fun `start game should preserve selected rule set`() {
+        val message = BluetoothMessage.StartGame(
+            seed = 20260427L,
+            ruleSetType = RuleSetType.NORTH
+        )
+
+        val decoded = BluetoothMessageCodec.decode(BluetoothMessageCodec.encode(message))
+
+        assertEquals(message, decoded)
+    }
+
+    @Test
+    fun `start game should decode legacy seed only payload as south rule`() {
+        val decoded = BluetoothMessageCodec.decode("START|20260427")
+
+        assertEquals(BluetoothMessage.StartGame(seed = 20260427L), decoded)
+    }
+
+    @Test
     fun `snapshot should preserve game sync payload`() {
         val message = BluetoothMessage.GameStateSnapshot(
             seed = 20260427L,
@@ -106,7 +127,8 @@ class BluetoothMessageCodecTest {
             lastPlayPlayerId = "p2",
             players = listOf("p1", "p2"),
             readyPlayers = listOf("p1", "p2"),
-            bluetoothPlayers = listOf("p2")
+            bluetoothPlayers = listOf("p2"),
+            ruleSetType = RuleSetType.NORTH
         )
 
         val decoded = BluetoothMessageCodec.decode(BluetoothMessageCodec.encode(message))

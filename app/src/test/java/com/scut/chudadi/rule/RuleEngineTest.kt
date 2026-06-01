@@ -31,10 +31,26 @@ class RuleEngineTest {
         val canPlayWithoutDiamond3 = RuleEngine.canPlay(
             state = state,
             playerCards = hand,
-            toPlay = listOf(Card(Rank.FIVE, Suit.SPADE))
+            toPlay = listOf(Card(Rank.FIVE, Suit.SPADE)),
+            profile = SouthRuleProfile
         )
 
         assertFalse(canPlayWithoutDiamond3)
+    }
+
+    @Test
+    fun `north first round can play without diamond three`() {
+        val state = newState().apply { firstRound = true }
+        val hand = listOf(Card(Rank.FIVE, Suit.SPADE), Card.DIAMOND_THREE)
+
+        val canPlay = RuleEngine.canPlay(
+            state = state,
+            playerCards = hand,
+            toPlay = listOf(Card(Rank.FIVE, Suit.SPADE)),
+            profile = NorthRuleProfile
+        )
+
+        assertTrue(canPlay)
     }
 
     @Test
@@ -52,8 +68,28 @@ class RuleEngineTest {
             majorSuit = Suit.SPADE
         )
 
-        val result = RuleEngine.compare(current, previous)
+        val result = RuleEngine.compare(current, previous, SouthRuleProfile)
 
         assertTrue(result > 0)
+    }
+
+    @Test
+    fun `north does not compare suit when rank equal`() {
+        val previous = Play(
+            cards = listOf(Card(Rank.NINE, Suit.HEART)),
+            type = HandType.SINGLE,
+            majorRank = Rank.NINE,
+            majorSuit = Suit.HEART
+        )
+        val current = Play(
+            cards = listOf(Card(Rank.NINE, Suit.SPADE)),
+            type = HandType.SINGLE,
+            majorRank = Rank.NINE,
+            majorSuit = Suit.SPADE
+        )
+
+        val result = RuleEngine.compare(current, previous, NorthRuleProfile)
+
+        assertTrue(result == 0)
     }
 }

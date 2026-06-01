@@ -1,5 +1,7 @@
 package com.scut.chudadi.network
 
+import com.scut.chudadi.model.RuleSetType
+
 sealed class BluetoothMessage {
     data class JoinRoom(val playerId: String, val playerName: String) : BluetoothMessage()
     data class SeatAssigned(
@@ -11,9 +13,13 @@ sealed class BluetoothMessage {
     data class RoomState(
         val players: List<String>,
         val readyPlayers: List<String> = emptyList(),
-        val bluetoothPlayers: List<String> = emptyList()
+        val bluetoothPlayers: List<String> = emptyList(),
+        val ruleSetType: RuleSetType = RuleSetType.SOUTH
     ) : BluetoothMessage()
-    data class StartGame(val seed: Long) : BluetoothMessage()
+    data class StartGame(
+        val seed: Long,
+        val ruleSetType: RuleSetType = RuleSetType.SOUTH
+    ) : BluetoothMessage()
     data class PlayCards(val playerId: String, val cards: List<String>) : BluetoothMessage()
     data class Pass(val playerId: String) : BluetoothMessage()
     data class PrivateHand(val playerId: String, val cards: List<String>) : BluetoothMessage()
@@ -31,7 +37,8 @@ sealed class BluetoothMessage {
         val lastPlayPlayerId: String? = null,
         val players: List<String> = emptyList(),
         val readyPlayers: List<String> = emptyList(),
-        val bluetoothPlayers: List<String> = emptyList()
+        val bluetoothPlayers: List<String> = emptyList(),
+        val ruleSetType: RuleSetType = RuleSetType.SOUTH
     ) : BluetoothMessage()
     data class RoundResult(val scoreMap: Map<String, Int>) : BluetoothMessage()
     data class PlayerOffline(val playerId: String) : BluetoothMessage()

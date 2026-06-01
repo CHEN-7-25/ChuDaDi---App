@@ -33,6 +33,7 @@ import com.scut.chudadi.model.GameConfig
 import com.scut.chudadi.model.HandType
 import com.scut.chudadi.model.PlayerState
 import com.scut.chudadi.model.Rank
+import com.scut.chudadi.model.RuleSetType
 import com.scut.chudadi.model.ScoringMode
 import com.scut.chudadi.model.Suit
 import com.scut.chudadi.network.BluetoothConnectionState
@@ -44,6 +45,7 @@ import com.scut.chudadi.network.BluetoothStatus
 import com.scut.chudadi.network.CardWireCodec
 import com.scut.chudadi.rule.HandEvaluator
 import com.scut.chudadi.rule.RuleEngine
+import com.scut.chudadi.rule.RuleProfiles
 
 class MainActivity : AppCompatActivity() {
     private lateinit var tvStatus: TextView
@@ -90,6 +92,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var rbHumans2: RadioButton
     private lateinit var rbHumans3: RadioButton
     private lateinit var rbHumans4: RadioButton
+    private lateinit var rbSouth: RadioButton
+    private lateinit var rbNorth: RadioButton
+    private lateinit var btnApplyRule: Button
+    private lateinit var btnEnterTable: Button
     private lateinit var bluetoothRoomPanel: View
     private lateinit var roomStatePanel: View
     private lateinit var tvSetupSummary: TextView
@@ -123,6 +129,7 @@ class MainActivity : AppCompatActivity() {
     private var heartbeatTimeoutReported = false
     private var roundNumber = 0
     private var roundOver = false
+    private var selectedRuleSetType = RuleSetType.SOUTH
     private var shouldFadeNextTablePrompt = false
     private var lastTablePromptText: String? = null
 
@@ -202,6 +209,10 @@ class MainActivity : AppCompatActivity() {
         rbHumans2 = findViewById(R.id.rbHumans2)
         rbHumans3 = findViewById(R.id.rbHumans3)
         rbHumans4 = findViewById(R.id.rbHumans4)
+        rbSouth = findViewById(R.id.rbSouth)
+        rbNorth = findViewById(R.id.rbNorth)
+        btnApplyRule = findViewById(R.id.btnApplyRule)
+        btnEnterTable = findViewById(R.id.btnEnterTable)
         bluetoothRoomPanel = findViewById(R.id.bluetoothRoomPanel)
         roomStatePanel = findViewById(R.id.roomStatePanel)
         tvSetupSummary = findViewById(R.id.tvSetupSummary)
@@ -225,7 +236,15 @@ class MainActivity : AppCompatActivity() {
         btnTableHint.setOnClickListener { selectHintCards() }
         btnTableNewGame.setOnClickListener { startNewGame() }
         btnTableLeaveRoom.setOnClickListener { leaveRoomPage() }
-        listOf(rbModeLocal, rbModeBluetooth, rbHumans2, rbHumans3, rbHumans4).forEach { radioButton ->
+        btnApplyRule.setOnClickListener {
+            playUiSound(selectSoundId)
+            applyRuleSelection(showFeedback = true)
+        }
+        btnEnterTable.setOnClickListener {
+            playUiSound(selectSoundId)
+            enterTableFromLobby()
+        }
+        listOf(rbModeLocal, rbModeBluetooth, rbHumans2, rbHumans3, rbHumans4, rbSouth, rbNorth).forEach { radioButton ->
             radioButton.setOnClickListener { updateLobbySetupUi() }
         }
 
@@ -369,24 +388,55 @@ class MainActivity : AppCompatActivity() {
         readyPlayers.add(localPlayerId)
         rbModeLocal.isChecked = true
         rbHumans2.isChecked = true
+        rbSouth.isChecked = true
+        selectedRuleSetType = RuleSetType.SOUTH
         etBluetoothRoom.setText("")
         tvBluetoothStatus.text = getString(R.string.bluetooth_idle)
         initializeLobbySetup()
     }
 
     private fun updateLobbySetupUi() {
+        applyRuleSelection(showFeedback = false)
         val bluetoothMode = rbModeBluetooth.isChecked
         bluetoothRoomPanel.visibility = if (bluetoothMode) View.VISIBLE else View.GONE
         roomStatePanel.visibility = if (bluetoothMode) View.VISIBLE else View.GONE
 
+        val ruleName = selectedRuleProfileName()
         if (bluetoothMode) {
             val humanCount = selectedHumanCount()
             val aiCount = PLAYER_IDS.size - humanCount
-            tvSetupSummary.text = "联机对局：$humanCount 位真人 + $aiCount 个 AI。房主创建房间后，真人加入完成会自动开局。"
+            tvSetupSummary.text = "联机对局：$humanCount 位真人 + $aiCount 个 AI。规则：$ruleName。真人加入完成会自动开局。"
             btnNewGame.text = getString(R.string.create_bluetooth_room)
         } else {
-            tvSetupSummary.text = getString(R.string.setup_summary_local)
+            tvSetupSummary.text = "${getString(R.string.setup_summary_local)} 规则：$ruleName。"
             btnNewGame.text = getString(R.string.start_local_game)
+        }
+    }
+
+    private fun applyRuleSelection(showFeedback: Boolean) {
+        selectedRuleSetType = if (::rbNorth.isInitialized && rbNorth.isChecked) {
+            RuleSetType.NORTH
+        } else {
+            RuleSetType.SOUTH
+        }
+
+        if (showFeedback) {
+            tvBluetoothStatus.text = "已选择${selectedRuleProfileName()}。开局前可再次切换。"
+        }
+    }
+
+    private fun selectedRuleProfileName(): String {
+        return RuleProfiles.from(selectedRuleSetType).displayName
+    }
+
+    private fun setSelectedRule(ruleSetType: RuleSetType) {
+        selectedRuleSetType = ruleSetType
+        if (::rbSouth.isInitialized && ::rbNorth.isInitialized) {
+            rbSouth.isChecked = ruleSetType == RuleSetType.SOUTH
+            rbNorth.isChecked = ruleSetType == RuleSetType.NORTH
+        }
+        if (::tvSetupSummary.isInitialized) {
+            updateLobbySetupUi()
         }
     }
 
@@ -439,7 +489,7 @@ class MainActivity : AppCompatActivity() {
         bluetoothHumanSeats.clear()
         clientSeatByRequestId.clear()
         enterRoomPage()
-        addLog("房间 $currentRoomId：3 个 AI 托管，自动开局")
+        addLog("房间 $currentRoomId：${selectedRuleProfileName()}，3 个 AI 托管，自动开局")
         startNewGame()
     }
 
@@ -465,7 +515,7 @@ class MainActivity : AppCompatActivity() {
         startHeartbeatLoop()
         roomGameStarted = false
         enterRoomPage()
-        addLog("蓝牙：创建房间 $currentRoomId，等待 ${humanSeats.size} 位真人加入")
+        addLog("蓝牙：创建房间 $currentRoomId，${selectedRuleProfileName()}，等待 ${humanSeats.size} 位真人加入")
         renderRoomState()
         renderTablePage()
     }
@@ -476,6 +526,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        rbModeBluetooth.isChecked = true
+        updateLobbySetupUi()
         currentRoomId = roomIdFromInput(defaultValue = "")
         if (currentRoomId.isEmpty()) {
             tvBluetoothStatus.text = "请点“已配对”选择主机手机，或输入主机 MAC / 已配对设备名。"
@@ -525,6 +577,19 @@ class MainActivity : AppCompatActivity() {
         setupPage.visibility = View.GONE
         roomPage.visibility = View.VISIBLE
         renderTablePage()
+    }
+
+    private fun enterTableFromLobby() {
+        if (bluetoothRole == BluetoothRole.LOCAL && !::controller.isInitialized) {
+            tvBluetoothStatus.text = "请先开始本地对局，或创建/加入蓝牙房间。"
+            return
+        }
+
+        if (bluetoothRole == BluetoothRole.CLIENT && !roomGameStarted) {
+            tvBluetoothStatus.text = "已进入牌桌，等待房主开局和同步实时牌面。"
+        }
+
+        enterRoomPage()
     }
 
     private fun leaveRoomPage() {
@@ -747,18 +812,32 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             is BluetoothMessage.RoomState -> {
+                if (bluetoothRole == BluetoothRole.CLIENT) {
+                    setSelectedRule(message.ruleSetType)
+                } else {
+                    selectedRuleSetType = message.ruleSetType
+                }
                 roomPlayers.clear()
                 roomPlayers.addAll(message.players)
                 readyPlayers.clear()
                 readyPlayers.addAll(message.readyPlayers)
                 bluetoothHumanSeats.clear()
                 bluetoothHumanSeats.addAll(message.bluetoothPlayers.filter { it in PLAYER_IDS && it != HUMAN_ID })
+                tvBluetoothStatus.text = "房间规则：${selectedRuleProfileName()}，玩家：${message.players.joinToString("，")}"
                 addLog("蓝牙房间玩家：${message.players.joinToString("，")}")
             }
             is BluetoothMessage.StartGame -> {
-                addLog("蓝牙：收到开局种子 ${message.seed}")
+                setSelectedRule(message.ruleSetType)
+                if (bluetoothRole != BluetoothRole.LOCAL && roomPage.visibility != View.VISIBLE) {
+                    enterRoomPage()
+                }
+                addLog("蓝牙：收到${selectedRuleProfileName()}开局种子 ${message.seed}")
                 if (bluetoothRole != BluetoothRole.HOST) {
-                    startNewGame(seed = message.seed, broadcastStart = false)
+                    startNewGame(
+                        seed = message.seed,
+                        broadcastStart = false,
+                        ruleSetType = message.ruleSetType
+                    )
                 }
             }
             is BluetoothMessage.PlayCards -> {
@@ -802,7 +881,12 @@ class MainActivity : AppCompatActivity() {
                     ensureSyncManager().bindPlayerAlias(message.playerId, message.playerId)
                     broadcastRoomState()
                     if (::controller.isInitialized) {
-                        syncManager?.sendMessage(BluetoothMessage.StartGame(controller.state.roundSeed))
+                        syncManager?.sendMessage(
+                            BluetoothMessage.StartGame(
+                                controller.state.roundSeed,
+                                controller.ruleProfile.type
+                            )
+                        )
                         sendBluetoothSnapshot()
                     }
                 } else if (bluetoothRole == BluetoothRole.HOST) {
@@ -851,7 +935,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (bluetoothRole == BluetoothRole.HOST && message.playerId != localPlayerId) {
-            val play = HandEvaluator.evaluate(cards)
+            val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
             if (play == null || !controller.playCards(message.playerId, cards)) {
                 addLog("蓝牙：拒绝 ${message.playerId} 的非法出牌 ${message.cards.joinToString(" ")}")
                 syncManager?.sendMessage(BluetoothMessage.Error("非法出牌：${message.playerId}"))
@@ -895,12 +979,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyBluetoothSnapshot(message: BluetoothMessage.GameStateSnapshot) {
+        if (bluetoothRole != BluetoothRole.LOCAL && roomPage.visibility != View.VISIBLE) {
+            enterRoomPage()
+        }
+        setSelectedRule(message.ruleSetType)
         reconcileClientSeatFromSnapshot(message)
-        if (!::controller.isInitialized || controller.state.roundSeed != message.seed) {
-            startNewGame(seed = message.seed, broadcastStart = false)
+        if (!::controller.isInitialized ||
+            controller.state.roundSeed != message.seed ||
+            controller.ruleProfile.type != message.ruleSetType
+        ) {
+            startNewGame(
+                seed = message.seed,
+                broadcastStart = false,
+                ruleSetType = message.ruleSetType
+            )
         }
 
         applySnapshotRoomState(message)
+        roomGameStarted = true
         controller.state.players.forEach { player ->
             message.scores[player.id]?.let { score ->
                 player.score = score
@@ -913,7 +1009,7 @@ class MainActivity : AppCompatActivity() {
 
         controller.state.lastPlay = CardWireCodec.decodeList(message.lastPlayCards)
             ?.takeIf { it.isNotEmpty() }
-            ?.let { HandEvaluator.evaluate(it) }
+            ?.let { HandEvaluator.evaluate(it, controller.ruleProfile) }
         controller.state.lastPlayPlayerId = message.lastPlayPlayerId
         controller.state.passCount = message.passCount
         controller.state.firstRound = message.firstRound
@@ -1004,7 +1100,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun startNewGame(
         seed: Long = System.currentTimeMillis(),
-        broadcastStart: Boolean = true
+        broadcastStart: Boolean = true,
+        ruleSetType: RuleSetType = selectedRuleSetType
     ) {
         if (broadcastStart && bluetoothRole == BluetoothRole.HOST && !allJoinedPlayersReady()) {
             val waiting = waitingHumanSeats()
@@ -1014,14 +1111,19 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        handler.removeCallbacksAndMessages(null)
+        if (bluetoothRole == BluetoothRole.CLIENT) {
+            handler.removeCallbacks(heartbeatRunnable)
+        } else {
+            handler.removeCallbacksAndMessages(null)
+        }
         selectedCards.clear()
         roundOver = false
         roomGameStarted = true
         roundNumber += 1
+        setSelectedRule(ruleSetType)
 
         val players = createPlayers()
-        val config = GameConfig(scoringMode = ScoringMode.SCORE)
+        val config = GameConfig(scoringMode = ScoringMode.SCORE, ruleSetType = ruleSetType)
         controller = GameController(config, players)
         controller.state.lastWinnerId = lastWinnerId
         controller.startGame(seed)
@@ -1034,7 +1136,7 @@ class MainActivity : AppCompatActivity() {
         addLog("第 ${roundNumber} 局：${controller.ruleProfile.displayName}开局")
         addLog("先手：${currentPlayer().name}")
         if (broadcastStart && bluetoothRole == BluetoothRole.HOST) {
-            syncManager?.sendMessage(BluetoothMessage.StartGame(seed))
+            syncManager?.sendMessage(BluetoothMessage.StartGame(seed, controller.ruleProfile.type))
             sendBluetoothSnapshot()
         }
         if (bluetoothRole != BluetoothRole.LOCAL) {
@@ -1080,14 +1182,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         val cards = selectedCards.toList().sorted()
-        val play = HandEvaluator.evaluate(cards)
+        val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
         if (play == null) {
             playUiSound(errorSoundId)
             setGameMessage("这组牌不是合法牌型。")
             return
         }
 
-        if (!RuleEngine.canPlay(controller.state, humanPlayer().handCards, cards)) {
+        if (!RuleEngine.canPlay(controller.state, humanPlayer().handCards, cards, controller.ruleProfile)) {
             playUiSound(errorSoundId)
             setGameMessage(invalidPlayMessage(cards))
             return
@@ -1156,7 +1258,7 @@ class MainActivity : AppCompatActivity() {
 
         val human = humanPlayer()
         val candidate = PlayCandidateFinder
-            .findValidCandidates(controller.state, human.handCards)
+            .findValidCandidates(controller.state, human.handCards, controller.ruleProfile)
             .firstOrNull()
 
         selectedCards.clear()
@@ -1199,7 +1301,8 @@ class MainActivity : AppCompatActivity() {
             val player = currentPlayer()
             val cards = strategyFor(player.id).chooseCards(
                 controller.state,
-                player.handCards
+                player.handCards,
+                controller.ruleProfile
             )
 
             if (cards == null) {
@@ -1210,7 +1313,7 @@ class MainActivity : AppCompatActivity() {
                     sendBluetoothSnapshot()
                 }
             } else {
-                val play = HandEvaluator.evaluate(cards)
+                val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
                 controller.playCards(player.id, cards)
                 addLog("${player.name} 出牌 ${typeName(play?.type)}：${cardsLabel(cards)}")
                 if (bluetoothRole == BluetoothRole.HOST) {
@@ -1301,6 +1404,9 @@ class MainActivity : AppCompatActivity() {
                 append(" · $modeLabel")
             }
         }
+        val canStartTableGame = bluetoothRole != BluetoothRole.CLIENT
+        btnTableNewGame.isEnabled = canStartTableGame
+        btnTableNewGame.alpha = if (canStartTableGame) 1f else 0.45f
 
         if (!roomGameStarted || !::controller.isInitialized) {
             tvTableLastPlay.text = "房间准备中"
@@ -1731,7 +1837,8 @@ class MainActivity : AppCompatActivity() {
             BluetoothMessage.RoomState(
                 players = roomPlayers.toList(),
                 readyPlayers = readyPlayers.filter { it in roomPlayers },
-                bluetoothPlayers = bluetoothHumanSeats.toList()
+                bluetoothPlayers = bluetoothHumanSeats.toList(),
+                ruleSetType = selectedRuleSetType
             )
         )
         renderRoomState()
@@ -1894,7 +2001,7 @@ class MainActivity : AppCompatActivity() {
         if (selectedCards.isEmpty()) return "未选择手牌"
 
         val cards = selectedCards.toList().sorted()
-        val play = HandEvaluator.evaluate(cards)
+        val play = HandEvaluator.evaluate(cards, controller.ruleProfile)
         val type = play?.type?.let { typeName(it) } ?: "非法牌型"
         val playState = if (canPlaySelectedCards()) "可出" else "不可出"
         return "已选：$type · ${cards.size} 张 · $playState  ${cardsLabel(cards)}"
@@ -1917,7 +2024,8 @@ class MainActivity : AppCompatActivity() {
         return RuleEngine.canPlay(
             controller.state,
             humanPlayer().handCards,
-            selectedCards.toList().sorted()
+            selectedCards.toList().sorted(),
+            controller.ruleProfile
         )
     }
 
@@ -1938,7 +2046,9 @@ class MainActivity : AppCompatActivity() {
     private fun invalidPlayMessage(cards: List<Card>): String {
         val state = controller.state
         return when {
-            state.firstRound && Card.DIAMOND_THREE !in cards -> "南方规则首轮必须包含方块 3。"
+            state.firstRound &&
+                controller.ruleProfile.firstRoundMustContainDiamondThree &&
+                Card.DIAMOND_THREE !in cards -> "${controller.ruleProfile.displayName}首轮必须包含方块 3。"
             state.lastPlay != null && state.lastPlay?.cards?.size != cards.size -> "需要出和上一手相同张数的牌。"
             else -> "这手牌压不过上一手，或者现在还不能这样出。"
         }
@@ -2138,7 +2248,8 @@ class MainActivity : AppCompatActivity() {
             lastPlayPlayerId = state.lastPlayPlayerId,
             players = roomPlayers.toList(),
             readyPlayers = readyPlayers.filter { it in roomPlayers },
-            bluetoothPlayers = bluetoothHumanSeats.toList()
+            bluetoothPlayers = bluetoothHumanSeats.toList(),
+            ruleSetType = controller.ruleProfile.type
         )
     }
 

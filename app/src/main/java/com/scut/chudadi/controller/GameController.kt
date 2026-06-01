@@ -9,12 +9,13 @@ import com.scut.chudadi.model.ScoringMode
 import com.scut.chudadi.model.Suit
 import com.scut.chudadi.rule.HandEvaluator
 import com.scut.chudadi.rule.RuleEngine
-import com.scut.chudadi.rule.SouthRuleProfile
+import com.scut.chudadi.rule.RuleProfile
+import com.scut.chudadi.rule.RuleProfiles
 import kotlin.random.Random
 
 class GameController(private val config: GameConfig, players: List<PlayerState>) {
     val state = GameState(players = players)
-    val ruleProfile = SouthRuleProfile
+    val ruleProfile: RuleProfile = RuleProfiles.from(config.ruleSetType)
 
     fun startGame(seed: Long = System.currentTimeMillis()) {
         state.roundSeed = seed
@@ -24,7 +25,7 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
             player.handCards.addAll(deck.subList(index * 13, (index + 1) * 13).sorted())
         }
 
-        state.currentPlayerIndex = ruleProfile.selectFirstPlayer(state.players)
+        state.currentPlayerIndex = ruleProfile.selectFirstPlayer(state.players, state.lastWinnerId)
         state.lastPlay = null
         state.lastPlayPlayerId = null
         state.passCount = 0
@@ -36,9 +37,9 @@ class GameController(private val config: GameConfig, players: List<PlayerState>)
         if (isRoundComplete()) return false
         val currentPlayer = state.players[state.currentPlayerIndex]
         if (currentPlayer.id != playerId) return false
-        if (!RuleEngine.canPlay(state, currentPlayer.handCards, cards)) return false
+        if (!RuleEngine.canPlay(state, currentPlayer.handCards, cards, ruleProfile)) return false
 
-        val play = HandEvaluator.evaluate(cards) ?: return false
+        val play = HandEvaluator.evaluate(cards, ruleProfile) ?: return false
         currentPlayer.handCards.removeAll(cards.toSet())
         state.lastPlay = play
         state.lastPlayPlayerId = currentPlayer.id
