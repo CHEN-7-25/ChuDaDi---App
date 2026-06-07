@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import android.content.Intent
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
@@ -190,6 +191,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        // initialize local user preferences
+        UserPrefs.init(applicationContext)
+        com.scut.chudadi.audio.MusicManager.init(applicationContext)
+
         tvStatus = findViewById(R.id.tvStatus)
         tvLastPlay = findViewById(R.id.tvLastPlay)
         tvSelection = findViewById(R.id.tvSelection)
@@ -265,6 +270,9 @@ class MainActivity : AppCompatActivity() {
             playUiSound(selectSoundId)
             applyRuleSelection(showFeedback = true)
         }
+        findViewById<View>(R.id.btnProfile)?.setOnClickListener {
+            startActivity(Intent(this, ProfileActivity::class.java))
+        }
         btnEnterTable.setOnClickListener {
             playUiSound(selectSoundId)
             enterTableFromLobby()
@@ -274,6 +282,24 @@ class MainActivity : AppCompatActivity() {
         }
 
         initializeLobbySetup()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        try {
+            com.scut.chudadi.audio.MusicManager.instance().play()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        try {
+            com.scut.chudadi.audio.MusicManager.instance().pause()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onDestroy() {
@@ -1389,6 +1415,12 @@ class MainActivity : AppCompatActivity() {
         syncManager?.sendMessage(BluetoothMessage.RoundResult(scoreMap))
         sendBluetoothSnapshot()
         setGameMessage("本局结束。点击“下一局”继续累计比分。")
+        // persist total games count locally
+        try {
+            UserPrefs.instance().incrementTotalGames()
+        } catch (e: Exception) {
+            // ignore if prefs not initialized for some reason
+        }
         render()
     }
 
