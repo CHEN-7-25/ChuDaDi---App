@@ -1418,6 +1418,8 @@ class MainActivity : AppCompatActivity() {
         // persist total games count locally
         try {
             UserPrefs.instance().incrementTotalGames()
+            val myScoreDelta = scoreMap[localPlayerId] ?: 0
+            UserPrefs.instance().addScoreRecord(myScoreDelta)
         } catch (e: Exception) {
             // ignore if prefs not initialized for some reason
         }

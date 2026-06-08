@@ -18,10 +18,16 @@ class ProfileActivity : AppCompatActivity() {
         val etNickname = findViewById<EditText>(R.id.etNickname)
         val btnSave = findViewById<Button>(R.id.btnSaveNickname)
         val tvTotalGames = findViewById<TextView>(R.id.tvTotalGames)
+        val tvTotalScore = findViewById<TextView>(R.id.tvTotalScore)
+        val tvBigWinCount = findViewById<TextView>(R.id.tvBigWinCount)
+        val tvSmallWinCount = findViewById<TextView>(R.id.tvSmallWinCount)
         val btnBack = findViewById<Button>(R.id.btnBack)
 
         etNickname.setText(prefs.nickname)
         tvTotalGames.text = prefs.totalGames.toString()
+        tvTotalScore.text = prefs.totalScore.toString()
+        tvBigWinCount.text = prefs.bigWinCount.toString()
+        tvSmallWinCount.text = prefs.smallWinCount.toString()
 
         btnBack.setOnClickListener {
             finish()
@@ -37,6 +43,14 @@ class ProfileActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         val tvTotalGames = findViewById<TextView>(R.id.tvTotalGames)
-        tvTotalGames.text = UserPrefs.instance().totalGames.toString()
+        val tvTotalScore = findViewById<TextView>(R.id.tvTotalScore)
+        val tvBigWinCount = findViewById<TextView>(R.id.tvBigWinCount)
+        val tvSmallWinCount = findViewById<TextView>(R.id.tvSmallWinCount)
+        
+        val prefs = UserPrefs.instance()
+        tvTotalGames.text = prefs.totalGames.toString()
+        tvTotalScore.text = prefs.totalScore.toString()
+        tvBigWinCount.text = prefs.bigWinCount.toString()
+        tvSmallWinCount.text = prefs.smallWinCount.toString()
     }
 }

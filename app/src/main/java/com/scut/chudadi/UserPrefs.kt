@@ -9,6 +9,9 @@ class UserPrefs private constructor(context: Context) {
         private const val PREF_NAME = "chudadi_user_prefs"
         private const val KEY_NICKNAME = "nickname"
         private const val KEY_TOTAL_GAMES = "total_games"
+        private const val KEY_TOTAL_SCORE = "total_score"
+        private const val KEY_BIG_WIN_COUNT = "big_win_count"
+        private const val KEY_SMALL_WIN_COUNT = "small_win_count"
         private const val KEY_MUSIC_ENABLED = "music_enabled"
         private const val KEY_BGM_TRACK = "bgm_track"
         private var INSTANCE: UserPrefs? = null
@@ -32,6 +35,18 @@ class UserPrefs private constructor(context: Context) {
     val totalGames: Int
         get() = prefs.getInt(KEY_TOTAL_GAMES, 0)
 
+    var totalScore: Int
+        get() = prefs.getInt(KEY_TOTAL_SCORE, 0)
+        set(value) = prefs.edit().putInt(KEY_TOTAL_SCORE, value).apply()
+
+    var bigWinCount: Int
+        get() = prefs.getInt(KEY_BIG_WIN_COUNT, 0)
+        set(value) = prefs.edit().putInt(KEY_BIG_WIN_COUNT, value).apply()
+
+    var smallWinCount: Int
+        get() = prefs.getInt(KEY_SMALL_WIN_COUNT, 0)
+        set(value) = prefs.edit().putInt(KEY_SMALL_WIN_COUNT, value).apply()
+
     var isMusicEnabled: Boolean
         get() = prefs.getBoolean(KEY_MUSIC_ENABLED, true)
         set(value) {
@@ -48,5 +63,14 @@ class UserPrefs private constructor(context: Context) {
         val next = totalGames + 1
         prefs.edit().putInt(KEY_TOTAL_GAMES, next).apply()
         return next
+    }
+
+    fun addScoreRecord(score: Int) {
+        totalScore += score
+        if (score == 3) {
+            bigWinCount += 1
+        } else if (score == 1) {
+            smallWinCount += 1
+        }
     }
 }
