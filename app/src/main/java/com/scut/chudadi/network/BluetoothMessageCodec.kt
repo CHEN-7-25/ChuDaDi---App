@@ -5,7 +5,13 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
+/**
+ * 蓝牙业务消息的文本编解码器。
+ *
+ * 协议以首字段作为消息类型，后续字段用分隔符连接；每个字段再做 URL 编码，避免昵称或错误信息中的中文和符号破坏格式。
+ */
 object BluetoothMessageCodec {
+    /** 将强类型消息编码成可直接按行发送的字符串。 */
     fun encode(message: BluetoothMessage): String {
         return when (message) {
             is BluetoothMessage.JoinRoom -> join("JOIN", message.playerId, message.playerName)
@@ -69,11 +75,13 @@ object BluetoothMessageCodec {
         }
     }
 
+    /** 将收到的一行文本解析成业务消息；格式错误时返回 null，交给上层提示错误。 */
     fun decode(line: String): BluetoothMessage? {
         val parts = line.split(FIELD_SEPARATOR)
         val type = parts.firstOrNull() ?: return null
         val fields = parts.drop(1).map(::decodeValue)
 
+        // runCatching 保护字段缺失、数字格式错误等情况，避免读线程因为坏包崩溃。
         return runCatching {
             when (type) {
                 "JOIN" -> BluetoothMessage.JoinRoom(fields[0], fields[1])
@@ -122,6 +130,7 @@ object BluetoothMessageCodec {
         }.getOrNull()
     }
 
+    /** 统一拼接消息类型和字段，并对字段做 URL 编码。 */
     private fun join(type: String, vararg fields: String): String {
         return buildList {
             add(type)
@@ -129,21 +138,25 @@ object BluetoothMessageCodec {
         }.joinToString(FIELD_SEPARATOR)
     }
 
+    /** 编码普通字符串列表，例如玩家列表和牌列表。 */
     private fun encodeList(values: List<String>): String {
         return values.joinToString(LIST_SEPARATOR) { encodeValue(it) }
     }
 
+    /** 解码普通字符串列表；空字段表示空列表。 */
     private fun decodeList(value: String): List<String> {
         if (value.isEmpty()) return emptyList()
         return value.split(LIST_SEPARATOR).map(::decodeValue)
     }
 
+    /** 编码分数字段这类 String -> Int 的映射。 */
     private fun encodeIntMap(values: Map<String, Int>): String {
         return values.entries.joinToString(LIST_SEPARATOR) { (key, value) ->
             "${encodeValue(key)}$MAP_SEPARATOR$value"
         }
     }
 
+    /** 解码 String -> Int 映射，使用最后一个冒号切分以兼容 key 中的编码内容。 */
     private fun decodeIntMap(value: String): Map<String, Int> {
         if (value.isEmpty()) return emptyMap()
         return value.split(LIST_SEPARATOR).associate { entry ->
@@ -154,6 +167,7 @@ object BluetoothMessageCodec {
         }
     }
 
+    /** 编码 String -> List<String>，用于定向快照里的私人手牌。 */
     private fun encodeStringListMap(values: Map<String, List<String>>): String {
         return values.entries.joinToString(MAP_ENTRY_SEPARATOR) { (key, list) ->
             val encodedList = list.joinToString(NESTED_LIST_SEPARATOR) { encodeValue(it) }
@@ -161,6 +175,7 @@ object BluetoothMessageCodec {
         }
     }
 
+    /** 解码嵌套列表映射；空值表示该玩家没有私有列表。 */
     private fun decodeStringListMap(value: String): Map<String, List<String>> {
         if (value.isEmpty()) return emptyMap()
         return value.split(MAP_ENTRY_SEPARATOR).associate { entry ->
@@ -176,14 +191,17 @@ object BluetoothMessageCodec {
         }
     }
 
+    /** URL 编码单个字段，防止分隔符出现在用户输入或错误文案中。 */
     private fun encodeValue(value: String): String {
         return URLEncoder.encode(value, StandardCharsets.UTF_8.name())
     }
 
+    /** URL 解码单个字段。 */
     private fun decodeValue(value: String): String {
         return URLDecoder.decode(value, StandardCharsets.UTF_8.name())
     }
 
+    /** 旧消息缺少规则字段时默认南方规则，保证向后兼容。 */
     private fun decodeRuleSetType(value: String?): RuleSetType {
         return value
             ?.takeIf { it.isNotBlank() }
@@ -191,6 +209,7 @@ object BluetoothMessageCodec {
             ?: RuleSetType.SOUTH
     }
 
+    /** 字段分隔符和集合分隔符只在编码后的协议层使用，业务字段本身会先 URL 编码。 */
     private const val FIELD_SEPARATOR = "|"
     private const val LIST_SEPARATOR = ","
     private const val MAP_SEPARATOR = ":"

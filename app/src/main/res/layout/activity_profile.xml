@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 个人资料页：编辑昵称并展示 UserPrefs 中保存的本地战绩统计。 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp">
 
+    <!-- 顶部标题栏和返回按钮。 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -30,6 +32,7 @@
             android:textStyle="bold" />
     </LinearLayout>
 
+    <!-- 昵称编辑区。 -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -51,6 +54,7 @@
         android:layout_marginTop="10dp"
         android:text="保存" />
 
+    <!-- 战绩统计区：每个数值由 ProfileActivity 从 UserPrefs 填充。 -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

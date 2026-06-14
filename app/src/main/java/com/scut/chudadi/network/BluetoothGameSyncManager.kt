@@ -20,33 +20,47 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
+/**
+ * 基于经典蓝牙 RFCOMM 的房间同步管理器。
+ *
+ * 该类只负责连接、收发和连接状态回调；出牌校验、座位分配和快照应用由 MainActivity 处理。
+ */
 class BluetoothGameSyncManager(
     context: Context,
     private val localPlayerId: String,
     private val maxClientCount: Int = DEFAULT_MAX_CLIENT_COUNT,
     private val serviceUuid: UUID = CHUDADI_SERVICE_UUID
 ) : GameSyncManager {
+    /** 使用 applicationContext 避免 Activity 重建后持有旧页面引用。 */
     private val appContext = context.applicationContext
+    /** 所有回调都切回主线程，方便 UI 层直接渲染。 */
     private val mainHandler = Handler(Looper.getMainLooper())
     private val adapter: BluetoothAdapter? =
         appContext.getSystemService(BluetoothManager::class.java)?.adapter
 
+    /** connectionId 通常是远端 MAC 地址，保存每条 socket 连接。 */
     private val connections = ConcurrentHashMap<String, Connection>()
+    /** 玩家 id 到 connectionId 的映射，用于定向发送私人手牌。 */
     private val playerConnectionIds = ConcurrentHashMap<String, String>()
     private var executor: ExecutorService = Executors.newCachedThreadPool()
+    /** 房主可能同时打开安全和兼容两个监听通道。 */
     private val serverSockets = ConcurrentHashMap<String, BluetoothServerSocket>()
     private var messageCallback: ((BluetoothMessage) -> Unit)? = null
     private var statusCallback: ((BluetoothStatus) -> Unit)? = null
+    /** 读写线程共同检查的关闭标记。 */
     @Volatile private var closed = false
 
+    /** 注册消息回调；回调会在主线程执行。 */
     override fun onMessage(callback: (BluetoothMessage) -> Unit) {
         messageCallback = callback
     }
 
+    /** 注册连接状态回调；回调会在主线程执行。 */
     override fun onStatus(callback: (BluetoothStatus) -> Unit) {
         statusCallback = callback
     }
 
+    /** 返回系统已配对设备，客户端加入房间时优先从这里选择主机手机。 */
     @SuppressLint("MissingPermission")
     fun bondedPeers(): List<BluetoothPeer> {
         val bluetoothAdapter = adapter ?: return emptyList()
@@ -62,6 +76,7 @@ class BluetoothGameSyncManager(
             .sortedWith(compareBy<BluetoothPeer> { it.name.ifBlank { it.address } })
     }
 
+    /** 房主创建房间并开始监听客户端连接。 */
     @SuppressLint("MissingPermission")
     override fun hostRoom(roomId: String) {
         if (!BluetoothPermissionHelper.hasRequiredPermissions(appContext)) {
@@ -83,6 +98,7 @@ class BluetoothGameSyncManager(
             }
 
             val errors = mutableListOf<String>()
+            // 同时尝试安全和兼容通道，提高不同设备/系统版本之间的连接成功率。
             val startedCount = listOf(
                 runCatching {
                     startAcceptLoop(
@@ -124,15 +140,18 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** 客户端首次加入房间，连接成功后立即发送 JoinRoom。 */
     @SuppressLint("MissingPermission")
     override fun joinRoom(roomId: String) {
         connectToRoom(roomId, BluetoothMessage.JoinRoom(localPlayerId, localPlayerId))
     }
 
+    /** 客户端断线后以已分配座位身份重新连接。 */
     fun reconnectRoom(roomId: String, playerId: String) {
         connectToRoom(roomId, BluetoothMessage.Reconnect(playerId))
     }
 
+    /** 连接主机设备，并在 socket 建立后发送首条握手消息。 */
     @SuppressLint("MissingPermission")
     private fun connectToRoom(roomId: String, firstMessage: BluetoothMessage) {
         if (!BluetoothPermissionHelper.hasRequiredPermissions(appContext)) {
@@ -148,6 +167,7 @@ class BluetoothGameSyncManager(
 
         executor.execute {
             try {
+                // 连接前取消发现流程，避免系统扫描拖慢 RFCOMM 建连。
                 if (BluetoothPermissionHelper.hasScanPermission(appContext)) {
                     runCatching { adapter?.cancelDiscovery() }
                 }
@@ -165,6 +185,7 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** 广播消息到所有已连接 socket；写失败的连接会被关闭并通知上层离线。 */
     override fun sendMessage(message: BluetoothMessage) {
         val line = BluetoothMessageCodec.encode(message)
         val failedIds = mutableListOf<String>()
@@ -179,6 +200,7 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** 向指定玩家连接定向发送消息，主要用于私人手牌或定向快照。 */
     fun sendMessageToPlayer(playerId: String, message: BluetoothMessage): Boolean {
         val connectionId = playerConnectionIds[playerId] ?: return false
         val connection = connections[connectionId] ?: return false
@@ -189,12 +211,14 @@ class BluetoothGameSyncManager(
         }.isSuccess
     }
 
+    /** 将临时 guest id 与房主分配的正式座位绑定到同一条连接。 */
     fun bindPlayerAlias(existingPlayerId: String, aliasPlayerId: String): Boolean {
         val connectionId = playerConnectionIds[existingPlayerId] ?: return false
         playerConnectionIds[aliasPlayerId] = connectionId
         return true
     }
 
+    /** 主动断开所有 socket 和监听线程。 */
     override fun disconnect() {
         closed = true
         closeSockets()
@@ -202,6 +226,7 @@ class BluetoothGameSyncManager(
         emitStatus(BluetoothConnectionState.DISCONNECTED, "蓝牙连接已断开")
     }
 
+    /** 建连失败时统一清理资源并回调错误状态。 */
     private fun failConnection(reason: String) {
         closed = true
         closeSockets()
@@ -212,6 +237,7 @@ class BluetoothGameSyncManager(
         )
     }
 
+    /** 房主在单个通道上循环 accept 客户端连接。 */
     private fun startAcceptLoop(channelName: String, serverSocket: BluetoothServerSocket) {
         serverSockets[channelName] = serverSocket
         emitStatus(
@@ -248,6 +274,7 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** 客户端先尝试安全通道，失败后自动回退到兼容通道。 */
     @SuppressLint("MissingPermission")
     private fun connectSocketWithFallback(device: BluetoothDevice): BluetoothSocket {
         val errors = mutableListOf<String>()
@@ -286,6 +313,7 @@ class BluetoothGameSyncManager(
         )
     }
 
+    /** 将新 socket 纳入连接池，并启动该连接的读循环。 */
     @SuppressLint("MissingPermission")
     private fun registerConnection(socket: BluetoothSocket) {
         val connectionId = socket.remoteDevice?.address ?: socket.hashCode().toString()
@@ -302,6 +330,7 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** 持续读取远端按行发送的协议消息。 */
     private fun readLoop(connectionId: String, connection: Connection) {
         try {
             connection.reader.use { reader ->
@@ -311,6 +340,7 @@ class BluetoothGameSyncManager(
                     if (message == null) {
                         emitMessage(BluetoothMessage.Error("无法解析蓝牙消息：$line"))
                     } else {
+                        // 先记录消息来源与玩家 id 的关系，再把消息交给业务层处理。
                         bindPlayerFromMessage(connectionId, message)
                         emitMessage(message)
                     }
@@ -325,6 +355,7 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** 根据用户输入的 MAC 地址或已配对设备名找到要连接的主机。 */
     @SuppressLint("MissingPermission")
     private fun findRemoteDevice(roomId: String): BluetoothDevice {
         val bluetoothAdapter = adapter ?: throw IllegalArgumentException("设备不支持蓝牙")
@@ -342,6 +373,7 @@ class BluetoothGameSyncManager(
         )
     }
 
+    /** 检查设备是否支持蓝牙且蓝牙已打开。 */
     private fun ensureBluetoothReady(): Boolean {
         val bluetoothAdapter = adapter
         if (bluetoothAdapter == null) {
@@ -359,12 +391,14 @@ class BluetoothGameSyncManager(
         return true
     }
 
+    /** 断开后再次创建/加入房间时，需要重建已经 shutdown 的线程池。 */
     private fun ensureExecutor() {
         if (executor.isShutdown || executor.isTerminated) {
             executor = Executors.newCachedThreadPool()
         }
     }
 
+    /** 关闭单条连接并按需向上层报告玩家离线。 */
     private fun closeConnection(connectionId: String, notifyOffline: Boolean) {
         val connection = connections.remove(connectionId) ?: return
         val offlinePlayerId = offlinePlayerIdFor(connectionId)
@@ -383,6 +417,7 @@ class BluetoothGameSyncManager(
         )
     }
 
+    /** 从同一连接绑定过的别名中优先找正式座位 id，便于离线提示准确。 */
     private fun offlinePlayerIdFor(connectionId: String): String {
         val aliases = playerConnectionIds.entries
             .filter { it.value == connectionId }
@@ -394,12 +429,14 @@ class BluetoothGameSyncManager(
             ?: connectionId
     }
 
+    /** 关闭所有连接和监听 socket。 */
     private fun closeSockets() {
         closeServerSockets()
         connections.keys.toList().forEach { closeConnection(it, notifyOffline = false) }
         playerConnectionIds.clear()
     }
 
+    /** 只关闭房主监听 socket，不影响已经建立的客户端连接。 */
     private fun closeServerSockets() {
         serverSockets.values.forEach { serverSocket ->
             runCatching { serverSocket.close() }
@@ -407,11 +444,13 @@ class BluetoothGameSyncManager(
         serverSockets.clear()
     }
 
+    /** 将消息回调投递到主线程。 */
     private fun emitMessage(message: BluetoothMessage) {
         val callback = messageCallback ?: return
         mainHandler.post { callback(message) }
     }
 
+    /** 将连接状态回调投递到主线程。 */
     private fun emitStatus(
         state: BluetoothConnectionState,
         detail: String,
@@ -423,8 +462,10 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** Android 蓝牙服务名中带上房间号，便于调试和区分当前房间。 */
     private fun serviceName(roomId: String): String = "ChuDaDi-$roomId"
 
+    /** 从带 playerId 的业务消息中学习连接与玩家的映射关系。 */
     private fun bindPlayerFromMessage(connectionId: String, message: BluetoothMessage) {
         val playerId = when (message) {
             is BluetoothMessage.JoinRoom -> message.playerId
@@ -440,6 +481,7 @@ class BluetoothGameSyncManager(
         }
     }
 
+    /** 单条 RFCOMM socket 的读写封装。 */
     private class Connection(socket: BluetoothSocket) {
         val reader = BufferedReader(
             InputStreamReader(socket.inputStream, StandardCharsets.UTF_8)
@@ -449,6 +491,7 @@ class BluetoothGameSyncManager(
         )
         private val socketRef = socket
 
+        /** 多线程发送时串行化 writer，避免两条协议消息交错写入。 */
         @Synchronized
         fun write(line: String) {
             writer.write(line)
@@ -456,6 +499,7 @@ class BluetoothGameSyncManager(
             writer.flush()
         }
 
+        /** 关闭读写流和底层 socket。 */
         fun close() {
             runCatching { writer.close() }
             runCatching { reader.close() }
@@ -464,12 +508,17 @@ class BluetoothGameSyncManager(
     }
 
     companion object {
+        /** 主服务 UUID，房主和客户端必须保持一致才能建连。 */
         val CHUDADI_SERVICE_UUID: UUID = UUID.fromString("a9695c24-48b7-4c71-a4fb-f1056c97f751")
+        /** 兼容通道使用独立 UUID，避免与安全通道冲突。 */
         private val COMPAT_SERVICE_UUID: UUID = UUID.fromString("c5c860d7-26b1-45f5-a4c3-4d3fbad6604b")
+        /** 正式游戏座位 id，只允许 p1 到 p4。 */
         private val FORMAL_PLAYER_ID = Regex("p[1-4]")
+        /** 从输入框文本中容错提取 MAC 地址。 */
         private val MAC_ADDRESS_IN_TEXT = Regex("(?i)([0-9A-F]{2}:){5}[0-9A-F]{2}")
         private const val SECURE_CHANNEL_NAME = "安全通道"
         private const val COMPAT_CHANNEL_NAME = "兼容通道"
+        /** 房主之外最多三个客户端座位。 */
         private const val DEFAULT_MAX_CLIENT_COUNT = 3
     }
 }

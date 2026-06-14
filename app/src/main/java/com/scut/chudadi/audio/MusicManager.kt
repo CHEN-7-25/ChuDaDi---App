@@ -5,21 +5,24 @@ import android.media.MediaPlayer
 import com.scut.chudadi.UserPrefs
 
 /**
- * 掌管整个游戏的背景音乐播放
- * 采用单例模式
+ * 掌管整个游戏的背景音乐播放。
+ *
+ * 单例持有 applicationContext，并根据 UserPrefs 中的开关和曲目选择维护 MediaPlayer 生命周期。
  */
 class MusicManager private constructor(private val context: Context) {
 
+    /** 当前背景音乐播放器；为 null 表示尚未创建或已经释放。 */
     private var mediaPlayer: MediaPlayer? = null
     private val prefs = UserPrefs.instance()
     
-    // 当前播放的曲目
+    /** 当前播放的曲目，初始化时从用户偏好恢复。 */
     private var currentTrack: BgmTrack = BgmTrack.fromId(prefs.selectedBgmTrack)
 
     companion object {
         @Volatile
         private var INSTANCE: MusicManager? = null
 
+        /** 初始化全局音乐管理器，通常在 MainActivity.onCreate 中调用。 */
         fun init(context: Context) {
             if (INSTANCE == null) {
                 synchronized(this) {
@@ -30,6 +33,7 @@ class MusicManager private constructor(private val context: Context) {
             }
         }
 
+        /** 获取单例；未初始化时抛错以暴露调用顺序问题。 */
         fun instance(): MusicManager {
             return INSTANCE ?: throw IllegalStateException("MusicManager not initialized. Call MusicManager.init(context) first.")
         }
@@ -57,7 +61,7 @@ class MusicManager private constructor(private val context: Context) {
     }
 
     /**
-     * 暂停音乐 (切后台或设置暂停时使用)
+     * 暂停音乐，切后台时保留 MediaPlayer 以便回到前台继续播放。
      */
     fun pause() {
         if (mediaPlayer?.isPlaying == true) {
@@ -66,7 +70,7 @@ class MusicManager private constructor(private val context: Context) {
     }
 
     /**
-     * 停止背景音乐并释放资源
+     * 停止背景音乐并释放资源。
      */
     fun stop() {
         mediaPlayer?.stop()
@@ -75,7 +79,7 @@ class MusicManager private constructor(private val context: Context) {
     }
 
     /**
-     * 根据设置界面的开关来开启/关闭音乐
+     * 根据设置界面的开关来开启或关闭音乐。
      */
     fun setMusicEnabled(enabled: Boolean) {
         prefs.isMusicEnabled = enabled
@@ -87,7 +91,7 @@ class MusicManager private constructor(private val context: Context) {
     }
 
     /**
-     * 从UI接收用户选择的新背景音乐并切换
+     * 从 UI 接收用户选择的新背景音乐并切换。
      */
     fun changeTrack(track: BgmTrack) {
         prefs.selectedBgmTrack = track.id
@@ -95,20 +99,20 @@ class MusicManager private constructor(private val context: Context) {
         
         // 如果音乐当前是开启状态，立即播放新的
         if (prefs.isMusicEnabled) {
-            stop() // 释放旧的
-            play() // 创建并播放新的
+            stop()
+            play()
         }
     }
 
+    /** 创建循环播放的 MediaPlayer；资源异常时静默降级，避免影响游戏主流程。 */
     private fun createMediaPlayer(track: BgmTrack) {
         try {
             mediaPlayer = MediaPlayer.create(context, track.resId)?.apply {
                 isLooping = true
-                setVolume(0.5f, 0.5f) // 设置合理的背景音量
+                setVolume(0.5f, 0.5f)
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            // 如果报错（比如找不到音频文件），静默失败，避免程序崩溃
             mediaPlayer = null
         }
     }

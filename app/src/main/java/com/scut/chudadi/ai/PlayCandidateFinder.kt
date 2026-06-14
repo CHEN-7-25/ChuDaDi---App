@@ -7,7 +7,13 @@ import com.scut.chudadi.rule.RuleEngine
 import com.scut.chudadi.rule.RuleProfile
 import com.scut.chudadi.rule.SouthRuleProfile
 
+/** 为提示和 AI 枚举当前手牌中所有合法候选出牌。 */
 object PlayCandidateFinder {
+    /**
+     * 查找可出的牌组。
+     *
+     * 有上一手时只枚举同张数牌组；桌面为空时枚举 1 到 5 张，交给 RuleEngine 过滤非法牌型。
+     */
     fun findValidCandidates(
         state: GameState,
         handCards: List<Card>,
@@ -26,6 +32,7 @@ object PlayCandidateFinder {
             .sortedWith(candidateComparator(ruleProfile))
     }
 
+    /** 候选按牌型、主点数、主花色从小到大排序，方便不同策略选择 first 或 last。 */
     private fun candidateComparator(ruleProfile: RuleProfile): Comparator<List<Card>> {
         return compareBy<List<Card>> { it.size }
             .thenBy { HandEvaluator.evaluate(it, ruleProfile)?.type?.level ?: Int.MAX_VALUE }
@@ -34,6 +41,7 @@ object PlayCandidateFinder {
             .thenBy { it.sumOf { card -> card.rank.order * 10 + card.suit.order } }
     }
 
+    /** 回溯枚举固定张数的组合；手牌最多 13 张，当前规模足够轻量。 */
     private fun combinations(cards: List<Card>, size: Int): List<List<Card>> {
         if (size <= 0 || size > cards.size) return emptyList()
         val result = mutableListOf<List<Card>>()

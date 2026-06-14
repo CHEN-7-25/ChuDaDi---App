@@ -14,8 +14,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+/** GameController 的状态推进和结算规则回归测试。 */
 class GameControllerTest {
 
+    /** 创建四个空手牌玩家，测试按需手动塞牌以减少发牌随机性影响。 */
     private fun players(): List<PlayerState> {
         return listOf(
             PlayerState("p1", "玩家1", false),
@@ -25,6 +27,7 @@ class GameControllerTest {
         )
     }
 
+    /** 南方规则必须由持有方块 3 的玩家先手。 */
     @Test
     fun `south first player should be diamond three owner`() {
         val p = players().toMutableList()
@@ -35,6 +38,7 @@ class GameControllerTest {
         assertEquals(2, first)
     }
 
+    /** 北方规则在有上局赢家时应由赢家先手。 */
     @Test
     fun `north first player should be last winner when available`() {
         val p = players()
@@ -44,6 +48,7 @@ class GameControllerTest {
         assertEquals(2, first)
     }
 
+    /** SCORE 模式按完整名次给 +3 / +1 / -1 / -3。 */
     @Test
     fun `score mode should calculate points by full finish order`() {
         val controller = GameController(
@@ -62,6 +67,7 @@ class GameControllerTest {
         assertTrue(controller.state.lastWinnerId == "p1")
     }
 
+    /** 当前实现一名玩家出完即结束本局。 */
     @Test
     fun `round should complete after first player finishes`() {
         val controller = GameController(
@@ -81,6 +87,7 @@ class GameControllerTest {
         assertTrue(controller.isRoundComplete())
     }
 
+    /** 本局结束后其他玩家不能继续过牌或出牌。 */
     @Test
     fun `remaining players cannot act after first player finishes`() {
         val controller = GameController(
@@ -101,6 +108,7 @@ class GameControllerTest {
         assertTrue(controller.state.lastPlay != null)
     }
 
+    /** 结算时未出完玩家按剩余手牌从少到多补齐名次。 */
     @Test
     fun `settlement should rank unfinished players by remaining cards`() {
         val controller = GameController(
@@ -137,6 +145,7 @@ class GameControllerTest {
         assertTrue(controller.isRoundComplete())
     }
 
+    /** 相同 seed 必须发出相同手牌，保证蓝牙多端可复现牌局。 */
     @Test
     fun `same seed should deal same hands`() {
         val first = GameController(
@@ -158,6 +167,7 @@ class GameControllerTest {
         assertEquals(20260427L, first.state.roundSeed)
     }
 
+    /** 北方规则开新局时应保留上局赢家作为先手。 */
     @Test
     fun `north seeded game should keep last winner as first player`() {
         val controller = GameController(

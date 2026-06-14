@@ -1,163 +1,256 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 主界面布局：同一个 Activity 中同时包含大厅设置页和牌桌页，代码中通过 visibility 切换。 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-<ScrollView
-    android:id="@+id/setupPage"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/lobby_background"
-    android:fillViewport="true">
-
-    <LinearLayout
+    <!-- 大厅首屏：外层可滚动，避免小屏横屏时卡片和底部按钮互相遮挡。 -->
+    <ScrollView
+        android:id="@+id/setupPage"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:layout_height="match_parent"
+        android:background="@drawable/ui_felt_blue_frame"
+        android:fillViewport="true"
+        android:scrollbars="none">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/tvTitle"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/app_name"
-                android:textColor="@color/casino_cream"
-                android:textSize="30sp"
-                android:textStyle="bold" />
-
-            <Button
-                android:id="@+id/btnProfile"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/button_secondary"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp"
-                android:minHeight="40dp"
-                android:text="个人信息"
-                android:textColor="@color/casino_cream" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/gameModePanel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/lobby_section_panel"
             android:orientation="vertical"
-            android:padding="12dp">
+            android:paddingStart="14dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="14dp">
 
-            <TextView
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/local_game_section"
-                android:textColor="@color/casino_cream"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:layout_height="78dp"
+                android:background="@drawable/ui_header_band"
+                android:elevation="8dp"
+                android:paddingStart="34dp"
+                android:paddingEnd="34dp">
 
-            <RadioGroup
-                android:id="@+id/rgGameMode"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                <ImageView
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_gravity="start|center_vertical"
+                    android:contentDescription="@string/app_name"
+                    android:src="@drawable/avatar_player" />
 
-                <RadioButton
-                    android:id="@+id/rbModeLocal"
+                <TextView
+                    android:id="@+id/tvTitle"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:buttonTint="@color/casino_gold"
-                    android:text="@string/mode_local"
-                    android:textColor="@color/casino_cream" />
+                    android:layout_height="match_parent"
+                    android:layout_gravity="center"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:text="@string/app_name"
+                    android:textColor="#FFFFC20C"
+                    android:textSize="34sp"
+                    android:textStyle="bold" />
 
-                <RadioButton
-                    android:id="@+id/rbModeBluetooth"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="18dp"
-                    android:buttonTint="@color/casino_gold"
-                    android:text="@string/mode_bluetooth"
-                    android:textColor="@color/casino_cream" />
-            </RadioGroup>
+                <TextView
+                    android:id="@+id/btnProfile"
+                    android:layout_width="172dp"
+                    android:layout_height="50dp"
+                    android:layout_gravity="end|center_vertical"
+                    android:background="@drawable/ui_dark_pill"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:includeFontPadding="false"
+                    android:text="战绩概览"
+                    android:textColor="@color/white"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
 
-            <TextView
-                android:id="@+id/tvSetupSummary"
+            <Space
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/status_chip"
-                android:minHeight="40dp"
-                android:padding="9dp"
-                android:text="@string/setup_summary_local"
-                android:textColor="@color/casino_cream"
-                android:textSize="14sp" />
+                android:layout_height="48dp" />
 
+            <!-- 三个主入口使用整张卡片作为点击区域，和参考 UI 的图片+文字结构保持一致。 -->
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="horizontal">
+                android:layout_height="168dp"
+                android:clipToPadding="false"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingStart="54dp"
+                android:paddingEnd="54dp">
 
-                <Button
+                <!-- 创建蓝牙房间卡片。 -->
+                <LinearLayout
                     android:id="@+id/btnNewGame"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
+                    android:layout_height="168dp"
+                    android:layout_marginEnd="24dp"
                     android:layout_weight="1"
-                    android:background="@drawable/button_primary"
-                    android:backgroundTint="@null"
-                    android:drawableStart="@drawable/ic_play_arrow_24"
-                    android:drawablePadding="6dp"
-                    android:minHeight="46dp"
-                    android:text="@string/start_local_game"
-                    android:textColor="@color/ink_dark" />
+                    android:background="@drawable/ui_lobby_card_panel"
+                    android:clickable="true"
+                    android:elevation="5dp"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="8dp">
 
-                <Button
-                    android:id="@+id/btnResetMatch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/button_secondary"
-                    android:backgroundTint="@null"
-                    android:minHeight="46dp"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
-                    android:text="@string/reset_match"
-                    android:textColor="@color/casino_cream" />
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="104dp"
+                        android:background="@drawable/ui_lobby_card_image_mask"
+                        android:clipToOutline="true"
+                        android:contentDescription="@string/bluetooth_host"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ui_lobby_card_art" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:text="创建房间"
+                        android:textColor="@color/black"
+                        android:textSize="23sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- 加入蓝牙房间卡片。 -->
+                <LinearLayout
+                    android:id="@+id/btnBluetoothJoin"
+                    android:layout_width="0dp"
+                    android:layout_height="168dp"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/ui_lobby_card_panel"
+                    android:clickable="true"
+                    android:elevation="5dp"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="104dp"
+                        android:background="@drawable/ui_lobby_card_image_mask"
+                        android:clipToOutline="true"
+                        android:contentDescription="@string/bluetooth_join"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ui_lobby_card_art" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:text="加入房间"
+                        android:textColor="@color/black"
+                        android:textSize="23sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <!-- 本地人机对局卡片。 -->
+                <LinearLayout
+                    android:id="@+id/btnEnterTable"
+                    android:layout_width="0dp"
+                    android:layout_height="168dp"
+                    android:layout_marginStart="24dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/ui_lobby_card_panel"
+                    android:clickable="true"
+                    android:elevation="5dp"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="8dp">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="104dp"
+                        android:background="@drawable/ui_lobby_card_image_mask"
+                        android:clipToOutline="true"
+                        android:contentDescription="@string/start_local_game"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/ui_lobby_card_art" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="0dp"
+                        android:layout_weight="1"
+                        android:gravity="center"
+                        android:includeFontPadding="false"
+                        android:text="离线模式"
+                        android:textColor="@color/black"
+                        android:textSize="23sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/rulePanel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/lobby_section_panel"
-            android:orientation="vertical"
-            android:padding="12dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/rule_section"
-                android:textColor="@color/casino_cream"
-                android:textSize="18sp"
-                android:textStyle="bold" />
 
             <LinearLayout
+                android:id="@+id/gameModePanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/ui_detail_panel"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:visibility="gone">
+
+                <RadioGroup
+                    android:id="@+id/rgGameMode"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rbModeLocal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:buttonTint="@color/casino_gold"
+                        android:checked="true"
+                        android:text="@string/mode_local"
+                        android:textColor="@color/casino_cream" />
+
+                    <RadioButton
+                        android:id="@+id/rbModeBluetooth"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="18dp"
+                        android:buttonTint="@color/casino_gold"
+                        android:text="@string/mode_bluetooth"
+                        android:textColor="@color/casino_cream" />
+                </RadioGroup>
+
+                <TextView
+                    android:id="@+id/tvSetupSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/status_chip"
+                    android:minHeight="38dp"
+                    android:padding="9dp"
+                    android:text="@string/setup_summary_local"
+                    android:textColor="@color/casino_cream"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- 规则选择不在大厅显示，但控件保留给 MainActivity 保存默认规则和同步远端规则。 -->
+            <LinearLayout
+                android:id="@+id/rulePanel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/ui_detail_panel"
+                android:orientation="horizontal"
+                android:padding="12dp"
+                android:visibility="gone">
 
                 <RadioGroup
                     android:id="@+id/rgRuleSet"
@@ -170,8 +263,8 @@
                         android:id="@+id/rbSouth"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:checked="true"
                         android:buttonTint="@color/casino_gold"
+                        android:checked="true"
                         android:text="@string/south_rule"
                         android:textColor="@color/casino_cream" />
 
@@ -184,500 +277,349 @@
                         android:text="@string/north_rule"
                         android:textColor="@color/casino_cream" />
                 </RadioGroup>
-
-                <Button
-                    android:id="@+id/btnApplyRule"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/button_secondary"
-                    android:backgroundTint="@null"
-                    android:minHeight="42dp"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="14dp"
-                    android:text="@string/apply_rule"
-                    android:textColor="@color/casino_cream" />
             </LinearLayout>
-        </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/bluetoothRoomPanel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/lobby_section_panel"
-            android:orientation="vertical"
-            android:padding="12dp">
-
-            <TextView
-                android:id="@+id/tvBluetoothTitle"
+            <LinearLayout
+                android:id="@+id/bluetoothRoomPanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/bluetooth_room_section"
-                android:textColor="@color/casino_cream"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
                 android:layout_marginTop="10dp"
-                android:text="@string/human_count_title"
-                android:textColor="@color/casino_cream"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <RadioGroup
-                android:id="@+id/rgHumanCount"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <RadioButton
-                    android:id="@+id/rbHumans2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:buttonTint="@color/casino_gold"
-                    android:text="@string/humans_2"
-                    android:textColor="@color/casino_cream" />
-
-                <RadioButton
-                    android:id="@+id/rbHumans3"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:buttonTint="@color/casino_gold"
-                    android:text="@string/humans_3"
-                    android:textColor="@color/casino_cream" />
-
-                <RadioButton
-                    android:id="@+id/rbHumans4"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:buttonTint="@color/casino_gold"
-                    android:text="@string/humans_4"
-                    android:textColor="@color/casino_cream" />
-            </RadioGroup>
-
-            <EditText
-                android:id="@+id/etBluetoothRoom"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:hint="@string/bluetooth_room_hint"
-                android:inputType="text"
-                android:minHeight="48dp"
-                android:singleLine="true"
-                android:textColor="@color/casino_cream"
-                android:textColorHint="#BFD7C8"
-                android:backgroundTint="@color/casino_gold" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/ui_detail_panel"
+                android:orientation="vertical"
+                android:padding="12dp">
 
                 <Button
-                    android:id="@+id/btnBluetoothPermission"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
+                    android:id="@+id/btnBluetoothBack"
+                    android:layout_width="112dp"
+                    android:layout_height="42dp"
+                    android:layout_gravity="start"
+                    android:layout_marginBottom="8dp"
                     android:background="@drawable/button_secondary"
                     android:backgroundTint="@null"
-                    android:drawableStart="@drawable/ic_bluetooth_24"
-                    android:drawablePadding="4dp"
-                    android:minHeight="44dp"
-                    android:text="@string/bluetooth_permission"
+                    android:minWidth="0dp"
+                    android:minHeight="0dp"
+                    android:text="返回大厅"
                     android:textColor="@color/casino_cream" />
 
-                <Button
-                    android:id="@+id/btnBluetoothDevices"
-                    android:layout_width="0dp"
+                <RadioGroup
+                    android:id="@+id/rgHumanCount"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:backgroundTint="@null"
-                    android:minHeight="44dp"
-                    android:text="@string/bluetooth_devices"
-                    android:textColor="@color/casino_cream" />
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/rbHumans2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:buttonTint="@color/casino_gold"
+                        android:checked="true"
+                        android:text="@string/humans_2"
+                        android:textColor="@color/casino_cream" />
+
+                    <RadioButton
+                        android:id="@+id/rbHumans3"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:buttonTint="@color/casino_gold"
+                        android:text="@string/humans_3"
+                        android:textColor="@color/casino_cream" />
+
+                    <RadioButton
+                        android:id="@+id/rbHumans4"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="14dp"
+                        android:buttonTint="@color/casino_gold"
+                        android:text="@string/humans_4"
+                        android:textColor="@color/casino_cream" />
+                </RadioGroup>
+
+                <EditText
+                    android:id="@+id/etBluetoothRoom"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:backgroundTint="@color/casino_gold"
+                    android:hint="@string/bluetooth_room_hint"
+                    android:inputType="text"
+                    android:minHeight="48dp"
+                    android:singleLine="true"
+                    android:textColor="@color/casino_cream"
+                    android:textColorHint="#BFD7C8" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnBluetoothPermission"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="6dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/button_secondary"
+                        android:backgroundTint="@null"
+                        android:minHeight="44dp"
+                        android:text="@string/bluetooth_permission"
+                        android:textColor="@color/casino_cream" />
+
+                    <Button
+                        android:id="@+id/btnBluetoothDevices"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:background="@drawable/button_secondary"
+                        android:backgroundTint="@null"
+                        android:minHeight="44dp"
+                        android:text="@string/bluetooth_devices"
+                        android:textColor="@color/casino_cream" />
+                </LinearLayout>
 
                 <Button
-                    android:id="@+id/btnBluetoothReconnect"
+                    android:id="@+id/btnBluetoothReady"
                     android:layout_width="0dp"
+                    android:layout_height="0dp"
+                    android:visibility="gone" />
+
+                <LinearLayout
+                    android:id="@+id/pairedDeviceBoard"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:backgroundTint="@null"
-                    android:minHeight="44dp"
-                    android:text="@string/bluetooth_reconnect"
-                    android:textColor="@color/casino_cream" />
+                    android:layout_marginTop="6dp"
+                    android:orientation="vertical" />
             </LinearLayout>
 
+            <!-- 房主/客户端看到的座位和准备状态列表。 -->
             <LinearLayout
+                android:id="@+id/roomStatePanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
+                android:layout_marginStart="24dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/ui_detail_panel"
+                android:orientation="vertical"
+                android:padding="12dp">
 
-	                <Button
-	                    android:id="@+id/btnBluetoothHost"
-                    android:layout_width="0dp"
+                <TextView
+                    android:id="@+id/tvBluetoothStatus"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_room_host"
-	                    android:backgroundTint="@null"
-	                    android:minHeight="44dp"
-	                    android:text="@string/bluetooth_host"
-	                    android:textColor="@color/casino_cream" />
-
-	                <Button
-	                    android:id="@+id/btnBluetoothJoin"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:backgroundTint="@null"
+                    android:background="@drawable/panel_dark"
                     android:minHeight="44dp"
-	                    android:text="@string/bluetooth_join"
-	                    android:textColor="@color/casino_cream" />
+                    android:padding="10dp"
+                    android:text="@string/bluetooth_idle"
+                    android:textColor="@color/casino_cream"
+                    android:textSize="14sp" />
+
+                <LinearLayout
+                    android:id="@+id/roomStateBoard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
             </LinearLayout>
 
+            <!-- 旧版控件隐藏保留：MainActivity 仍会通过这些 id 更新状态、日志和手牌数据。 -->
             <LinearLayout
+                android:id="@+id/legacySetupGamePanel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:visibility="gone">
 
-                <Button
-                    android:id="@+id/btnEnterTable"
-                    android:layout_width="0dp"
+                <TextView
+                    android:id="@+id/tvStatus"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="6dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_secondary"
-                    android:backgroundTint="@null"
-                    android:minHeight="44dp"
-                    android:text="@string/enter_table"
-                    android:textColor="@color/casino_cream" />
+                    android:text="@string/game_waiting" />
 
-                <Button
-                    android:id="@+id/btnBluetoothDisconnect"
-                    android:layout_width="0dp"
+                <TextView
+                    android:id="@+id/tvLastPlay"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/button_danger"
-                    android:backgroundTint="@null"
-                    android:minHeight="44dp"
-                    android:text="@string/bluetooth_disconnect"
-                    android:textColor="@color/casino_cream" />
+                    android:text="@string/no_last_play" />
+
+                <LinearLayout
+                    android:id="@+id/playerBoard"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <LinearLayout
+                        android:id="@+id/cardContainer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+
+                <TextView
+                    android:id="@+id/tvSelection"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/no_selection" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnPlay"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/play_cards" />
+
+                    <Button
+                        android:id="@+id/btnPass"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/pass" />
+
+                    <Button
+                        android:id="@+id/btnHint"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/hint" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/tvMessage"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/message_ready" />
+
+                <TextView
+                    android:id="@+id/tvLog"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/log_empty" />
             </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/pairedDeviceBoard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:orientation="vertical" />
-
-            <Button
-                android:id="@+id/btnBluetoothReady"
-                android:layout_width="1dp"
-                android:layout_height="1dp"
-                android:text="@string/bluetooth_ready"
-                android:visibility="gone" />
         </LinearLayout>
+    </ScrollView>
 
-        <LinearLayout
-            android:id="@+id/roomStatePanel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/lobby_section_panel"
-            android:orientation="vertical"
-            android:padding="12dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="@string/room_state_section"
-                android:textColor="@color/casino_cream"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvBluetoothStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/panel_dark"
-                android:minHeight="44dp"
-                android:padding="10dp"
-                android:text="@string/bluetooth_idle"
-                android:textColor="@color/casino_cream"
-                android:textSize="14sp" />
-
-            <LinearLayout
-                android:id="@+id/roomStateBoard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="vertical" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/legacySetupGamePanel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-        <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/panel_dark"
-            android:padding="12dp"
-            android:text="@string/game_waiting"
-            android:textColor="@color/casino_cream"
-            android:textSize="16sp" />
-
-        <TextView
-            android:id="@+id/tvLastPlay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:background="@drawable/panel_gold"
-            android:padding="12dp"
-            android:text="@string/no_last_play"
-            android:textColor="@color/ink_dark"
-            android:textSize="15sp" />
-
-        <LinearLayout
-            android:id="@+id/playerBoard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:orientation="vertical" />
-
-        <TextView
-            android:id="@+id/tvHandTitle"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/my_hand"
-            android:textColor="@color/casino_cream"
-            android:textSize="18sp"
-            android:textStyle="bold" />
-
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:clipToPadding="false"
-            android:fillViewport="false"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:id="@+id/cardContainer"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingBottom="8dp"
-                android:paddingTop="8dp" />
-        </HorizontalScrollView>
-
-        <TextView
-            android:id="@+id/tvSelection"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/status_chip"
-            android:minHeight="40dp"
-            android:padding="8dp"
-            android:text="@string/no_selection"
-            android:textColor="@color/casino_cream" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:orientation="horizontal">
-
-	            <Button
-	                android:id="@+id/btnPlay"
-	                android:layout_width="0dp"
-	                android:layout_height="wrap_content"
-	                android:layout_marginEnd="8dp"
-	                android:layout_weight="1"
-	                android:background="@drawable/button_primary"
-	                android:backgroundTint="@null"
-	                android:drawableStart="@drawable/ic_play_arrow_24"
-	                android:drawablePadding="6dp"
-	                android:minHeight="46dp"
-	                android:textColor="@color/ink_dark"
-	                android:text="@string/play_cards" />
-
-            <Button
-                android:id="@+id/btnPass"
-                android:layout_width="0dp"
-	                android:layout_height="wrap_content"
-	                android:layout_marginEnd="8dp"
-	                android:layout_weight="1"
-	                android:background="@drawable/button_secondary"
-	                android:backgroundTint="@null"
-	                android:drawableStart="@drawable/ic_pass_24"
-	                android:drawablePadding="6dp"
-	                android:minHeight="46dp"
-	                android:textColor="@color/casino_cream"
-	                android:text="@string/pass" />
-
-            <Button
-	                android:id="@+id/btnHint"
-	                android:layout_width="0dp"
-	                android:layout_height="wrap_content"
-	                android:layout_weight="1"
-	                android:background="@drawable/button_primary"
-	                android:backgroundTint="@null"
-	                android:drawableStart="@drawable/ic_lightbulb_24"
-	                android:drawablePadding="6dp"
-	                android:minHeight="46dp"
-	                android:textColor="@color/ink_dark"
-	                android:text="@string/hint" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvMessage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/status_chip"
-            android:minHeight="44dp"
-            android:padding="10dp"
-            android:text="@string/message_ready"
-            android:textColor="@color/casino_cream"
-            android:textSize="15sp" />
-
-        <TextView
-            android:id="@+id/tvLog"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:background="@drawable/panel_dark"
-            android:lineSpacingExtra="2dp"
-            android:minHeight="120dp"
-            android:padding="12dp"
-            android:text="@string/log_empty"
-            android:textColor="@color/casino_cream"
-            android:textSize="14sp" />
-        </LinearLayout>
-    </LinearLayout>
-</ScrollView>
-
+    <!-- 横屏沉浸式牌桌页面。 -->
     <FrameLayout
         android:id="@+id/roomPage"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="@drawable/table_room_background"
+        android:background="@drawable/ui_felt_blue_frame"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/tvTableStatus"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="@dimen/table_top_bar_height"
-            android:background="@drawable/table_top_bar"
-            android:gravity="center_vertical"
-            android:paddingStart="18dp"
-            android:paddingEnd="136dp"
-            android:ellipsize="end"
-            android:singleLine="true"
-            android:textColor="@color/casino_cream"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:layout_height="92dp"
+            android:layout_marginStart="14dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="14dp"
+            android:background="@drawable/ui_header_band"
+            android:elevation="8dp"
+            android:paddingStart="58dp"
+            android:paddingEnd="58dp">
 
+            <TextView
+                android:id="@+id/btnTableLeaveRoom"
+                android:layout_width="62dp"
+                android:layout_height="62dp"
+                android:layout_gravity="start|center_vertical"
+                android:background="@drawable/ui_back_circle"
+                android:clickable="true"
+                android:contentDescription="@string/leave_room"
+                android:focusable="true"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="‹"
+                android:textColor="#FFFFC20C"
+                android:textSize="52sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:text="@string/app_name"
+                android:textColor="#FFFFC20C"
+                android:textSize="42sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTableStatus"
+                android:layout_width="230dp"
+                android:layout_height="54dp"
+                android:layout_gravity="end|center_vertical"
+                android:background="@drawable/ui_dark_pill"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+        </FrameLayout>
+
+        <!-- 牌桌顶部其他玩家座位区域。 -->
         <LinearLayout
             android:id="@+id/tableTopSeats"
-            android:layout_width="match_parent"
-            android:layout_height="62dp"
+            android:layout_width="300dp"
+            android:layout_height="132dp"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="44dp"
+            android:layout_marginTop="118dp"
+            android:clipToPadding="false"
             android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingStart="108dp"
-            android:paddingEnd="108dp" />
+            android:orientation="horizontal" />
 
         <LinearLayout
             android:id="@+id/tableLeftSeats"
             android:layout_width="@dimen/table_side_seat_width"
-            android:layout_height="wrap_content"
+            android:layout_height="132dp"
             android:layout_gravity="start|center_vertical"
-            android:layout_marginStart="12dp"
-            android:layout_marginBottom="@dimen/table_side_seat_bottom_offset"
+            android:layout_marginStart="30dp"
+            android:clipToPadding="false"
             android:gravity="center"
-            android:orientation="vertical" />
+            android:orientation="vertical"
+            android:translationY="52dp" />
 
         <LinearLayout
             android:id="@+id/tableRightSeats"
             android:layout_width="@dimen/table_side_seat_width"
-            android:layout_height="wrap_content"
+            android:layout_height="132dp"
             android:layout_gravity="end|center_vertical"
-            android:layout_marginEnd="12dp"
-            android:layout_marginBottom="@dimen/table_side_seat_bottom_offset"
-            android:gravity="center"
-            android:orientation="vertical" />
-
-        <LinearLayout
-            android:id="@+id/tableCenterPlayArea"
-            android:layout_width="@dimen/table_center_width"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginBottom="18dp"
-            android:background="@drawable/table_center_panel"
-            android:elevation="5dp"
+            android:layout_marginEnd="30dp"
+            android:clipToPadding="false"
             android:gravity="center"
             android:orientation="vertical"
-            android:paddingStart="16dp"
-            android:paddingTop="14dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="14dp">
-
-            <TextView
-                android:id="@+id/tvTableLastPlay"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:minHeight="28dp"
-                android:textColor="#FFFFF2C4"
-                android:textSize="17sp"
-                android:textStyle="bold" />
-
-            <LinearLayout
-                android:id="@+id/tableLastPlayCards"
-                android:layout_width="match_parent"
-                android:layout_height="62dp"
-                android:clipToPadding="false"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingTop="8dp"
-                android:paddingBottom="2dp" />
-        </LinearLayout>
+            android:translationY="52dp" />
 
         <TextView
             android:id="@+id/tvTableMessage"
-            android:layout_width="@dimen/table_center_width"
+            android:layout_width="190dp"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:translationY="78dp"
+            android:layout_gravity="top|start"
+            android:layout_marginStart="154dp"
+            android:layout_marginTop="32dp"
             android:background="@drawable/table_message_panel"
             android:elevation="16dp"
+            android:ellipsize="end"
             android:gravity="center"
-            android:minHeight="38dp"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:minHeight="36dp"
             android:paddingStart="10dp"
             android:paddingTop="6dp"
             android:paddingEnd="10dp"
@@ -686,20 +628,132 @@
             android:textSize="14sp"
             android:visibility="gone" />
 
+        <!-- 出牌操作区固定在手牌上方，倒计时贴在“出牌”按钮旁边便于当前玩家关注。 -->
+        <LinearLayout
+            android:id="@+id/tableActions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="128dp"
+            android:elevation="22dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnTablePlay"
+                android:layout_width="92dp"
+                android:layout_height="48dp"
+                android:background="@drawable/ui_gold_button"
+                android:backgroundTint="@null"
+                android:includeFontPadding="false"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="@string/play_cards"
+                android:textColor="@color/black"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tvTableCountdown"
+                android:layout_width="84dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/ui_countdown_badge"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:textColor="#FFFFF5D0"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnTableHint"
+                android:layout_width="92dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="22dp"
+                android:background="@drawable/ui_green_button"
+                android:backgroundTint="@null"
+                android:includeFontPadding="false"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="@string/hint"
+                android:textColor="@color/black"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnTablePass"
+                android:layout_width="92dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="34dp"
+                android:background="@drawable/ui_gray_button"
+                android:backgroundTint="@null"
+                android:includeFontPadding="false"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:text="@string/pass"
+                android:textColor="@color/black"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- 本地玩家头像、分数和手牌数量区域。 -->
+        <LinearLayout
+            android:id="@+id/tableLocalHud"
+            android:layout_width="96dp"
+            android:layout_height="124dp"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="28dp"
+            android:layout_marginBottom="70dp"
+            android:gravity="center"
+            android:orientation="vertical" />
+
+        <!-- 本地玩家刚出的牌单独放在头像前方，避免挤进手牌区或头像容器。 -->
+        <LinearLayout
+            android:id="@+id/tableLocalLastPlay"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_marginStart="132dp"
+            android:layout_marginBottom="142dp"
+            android:elevation="24dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/btnTableNewGame"
+            android:layout_width="72dp"
+            android:layout_height="34dp"
+            android:layout_gravity="top|end"
+            android:layout_marginTop="112dp"
+            android:layout_marginEnd="30dp"
+            android:background="@drawable/ui_dark_pill"
+            android:clickable="true"
+            android:contentDescription="@string/new_game"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:text="@string/table_new_game_short"
+            android:textColor="@color/casino_cream"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+
         <HorizontalScrollView
             android:id="@+id/tableHandScroll"
             android:layout_width="match_parent"
             android:layout_height="@dimen/table_hand_tray_height"
             android:layout_gravity="bottom"
             android:layout_marginStart="@dimen/table_hand_tray_start"
-            android:layout_marginEnd="16dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginEnd="@dimen/table_hand_tray_end"
+            android:layout_marginBottom="8dp"
             android:background="@drawable/table_hand_tray"
             android:clipToPadding="false"
             android:fillViewport="false"
             android:paddingTop="8dp"
             android:scrollbars="none">
 
+            <!-- 本地玩家手牌容器，由 MainActivity 动态创建牌按钮。 -->
             <LinearLayout
                 android:id="@+id/tableCardContainer"
                 android:layout_width="wrap_content"
@@ -709,113 +763,5 @@
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp" />
         </HorizontalScrollView>
-
-        <LinearLayout
-            android:id="@+id/tableActions"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom|center_horizontal"
-            android:layout_marginBottom="150dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-	            <Button
-                android:id="@+id/btnTablePass"
-                android:layout_width="112dp"
-                android:layout_height="@dimen/table_action_height"
-	                android:background="@drawable/table_action_secondary"
-	                android:backgroundTint="@null"
-	                android:drawableStart="@drawable/ic_pass_24"
-	                android:drawablePadding="4dp"
-	                android:textColor="@color/casino_cream"
-	                android:textSize="16sp"
-	                android:textStyle="bold"
-	                android:text="@string/pass" />
-
-            <Button
-                android:id="@+id/btnTableHint"
-                android:layout_width="112dp"
-	                android:layout_height="@dimen/table_action_height"
-	                android:layout_marginStart="@dimen/table_action_gap"
-	                android:background="@drawable/table_action_secondary"
-	                android:backgroundTint="@null"
-	                android:drawableStart="@drawable/ic_lightbulb_24"
-	                android:drawablePadding="4dp"
-	                android:textColor="@color/casino_cream"
-	                android:textSize="16sp"
-	                android:textStyle="bold"
-	                android:text="@string/hint" />
-
-            <Button
-                android:id="@+id/btnTablePlay"
-	                android:layout_width="128dp"
-	                android:layout_height="@dimen/table_action_height"
-	                android:layout_marginStart="@dimen/table_action_gap"
-	                android:background="@drawable/table_action_primary"
-	                android:backgroundTint="@null"
-	                android:drawableStart="@drawable/ic_play_arrow_24"
-	                android:drawablePadding="4dp"
-	                android:textColor="@color/ink_dark"
-	                android:textSize="17sp"
-	                android:textStyle="bold"
-	                android:text="@string/play_cards" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/tableLocalHud"
-            android:layout_width="108dp"
-            android:layout_height="120dp"
-            android:layout_gravity="bottom|start"
-            android:layout_marginStart="12dp"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/table_hud_panel"
-            android:elevation="4dp"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:padding="6dp" />
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top|end"
-            android:layout_marginTop="4dp"
-            android:layout_marginEnd="10dp"
-            android:orientation="horizontal">
-
-	            <TextView
-	                android:id="@+id/btnTableNewGame"
-	                android:layout_width="54dp"
-	                android:layout_height="30dp"
-	                android:background="@drawable/table_icon_button"
-	                android:clickable="true"
-	                android:contentDescription="@string/new_game"
-	                android:focusable="true"
-	                android:gravity="center"
-	                android:includeFontPadding="false"
-	                android:paddingStart="4dp"
-	                android:paddingEnd="4dp"
-	                android:text="@string/table_new_game_short"
-	                android:textColor="@color/casino_cream"
-	                android:textSize="11sp"
-	                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/btnTableLeaveRoom"
-	                android:layout_width="54dp"
-	                android:layout_height="30dp"
-	                android:layout_marginStart="6dp"
-	                android:background="@drawable/table_icon_button"
-	                android:clickable="true"
-	                android:contentDescription="@string/leave_room"
-	                android:focusable="true"
-	                android:gravity="center"
-	                android:includeFontPadding="false"
-	                android:paddingStart="4dp"
-	                android:paddingEnd="4dp"
-	                android:text="@string/table_leave_room_short"
-	                android:textColor="@color/casino_cream"
-	                android:textSize="11sp"
-	                android:textStyle="bold" />
-        </LinearLayout>
     </FrameLayout>
 </FrameLayout>
